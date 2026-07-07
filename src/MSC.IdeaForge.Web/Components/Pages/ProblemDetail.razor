@@ -1,0 +1,108 @@
+@page "/problems/{Id:guid}"
+@rendermode InteractiveServer
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemByIdHandler GetProblemByIdHandler
+
+<PageTitle>Problem Detayı</PageTitle>
+
+<div class="container mt-4" style="max-width: 800px;">
+    @* Geri dönme bağlantısı *@
+    <div class="mb-3">
+        <a href="/problems" class="btn btn-outline-secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;">
+            <span>&larr;</span> Geri Dön
+        </a>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Problem yükleniyor...</p>
+        </div>
+    }
+    else if (problem is null)
+    {
+        @* Problem bulunamadığında gösterilecek mesaj *@
+        <div class="alert alert-warning text-center shadow-sm" role="alert" style="border-radius: 8px; padding: 2rem;">
+            <h4 class="alert-heading text-warning">Problem bulunamadı.</h4>
+            <p class="mb-0 text-muted">Aradığınız kimliğe sahip bir problem kaydı mevcut değil veya silinmiş olabilir.</p>
+        </div>
+    }
+    else
+    {
+        @* Problem detay bilgileri *@
+        <div class="card shadow-sm border-0" style="border-radius: 12px; overflow: hidden; background: linear-gradient(to bottom, #ffffff, #fcfcfc);">
+            <div class="card-header bg-primary text-white p-4" style="border-bottom: none;">
+                <span class="text-uppercase tracking-wider small opacity-75 d-block mb-1">PROBLEM DETAYI</span>
+                <h2 class="card-title m-0 font-weight-bold" style="letter-spacing: -0.5px;">@problem.Title</h2>
+            </div>
+            <div class="card-body p-4">
+                @* Açıklama Bölümü *@
+                <div class="mb-4">
+                    <h5 class="text-primary font-weight-bold mb-2">Açıklama</h5>
+                    <div class="p-3 bg-light rounded" style="white-space: pre-wrap; line-height: 1.6; border-left: 4px solid #0d6efd; color: #495057;">
+                        @problem.Description
+                    </div>
+                </div>
+
+                @* Detay Parametre Tablosu / Grid *@
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <div class="p-3 bg-light rounded h-100">
+                            <span class="text-muted d-block small">Durum</span>
+                            <span class="badge bg-secondary mt-1 px-2.5 py-1.5" style="font-size: 0.9rem;">@problem.Status</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 bg-light rounded h-100">
+                            <span class="text-muted d-block small">Öncelik</span>
+                            <span class="badge bg-info text-dark mt-1 px-2.5 py-1.5" style="font-size: 0.9rem;">@problem.Priority</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 bg-light rounded h-100">
+                            <span class="text-muted d-block small">Sektör</span>
+                            <span class="font-weight-bold text-dark mt-1 d-block">@(string.IsNullOrWhiteSpace(problem.Sector) ? "-" : problem.Sector)</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 bg-light rounded h-100">
+                            <span class="text-muted d-block small">Kaynak</span>
+                            <span class="font-weight-bold text-dark mt-1 d-block">@(string.IsNullOrWhiteSpace(problem.Source) ? "-" : problem.Source)</span>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="p-3 bg-light rounded">
+                            <span class="text-muted d-block small">Eklenme Tarihi</span>
+                            <span class="text-dark mt-1 d-block font-mono">@problem.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private MSC.IdeaForge.Application.Problems.DTOs.ProblemDto? problem;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Sayfa yüklendiğinde problemi getirmek için sorgu işleyicisini tetikliyoruz.
+        try
+        {
+            problem = await GetProblemByIdHandler.HandleAsync(Id);
+        }
+        catch
+        {
+            problem = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

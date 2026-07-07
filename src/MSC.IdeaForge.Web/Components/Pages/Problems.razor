@@ -1,0 +1,103 @@
+@page "/problems"
+@rendermode InteractiveServer
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject MSC.IdeaForge.Application.Problems.Commands.CreateProblemHandler CreateProblemHandler
+
+<h2>Problemler</h2>
+
+<div style="margin-bottom:1rem">
+    <input placeholder="Başlık" @bind="newTitle" style="width:200px;margin-right:8px" />
+    <input placeholder="Açıklama" @bind="newDescription" style="width:300px;margin-right:8px" />
+    <input placeholder="Sektör" @bind="newSector" style="width:120px;margin-right:8px" />
+    <button @onclick="AddProblem">Problem Ekle</button>
+</div>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <p style="color:red">@errorMessage</p>
+}
+
+@if (problems is null)
+{
+    <p>Yükleniyor...</p>
+}
+else if (!problems.Any())
+{
+    <p>Henüz problem eklenmedi. İlk problemini ekle.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Başlık</th>
+                <th>Durum</th>
+                <th>Öncelik</th>
+                <th>Sektör</th>
+                <th>Tarih</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in problems)
+            {
+                <tr>
+                    @* Başlık hücresini detay sayfasına yönlendiren bir linke dönüştürüyoruz *@
+                    <td><a href="/problems/@p.Id">@p.Title</a></td>
+                    <td>@p.Status</td>
+                    <td>@p.Priority</td>
+                    <td>@p.Sector</td>
+                    <td>@p.CreatedAt.ToString("yyyy-MM-dd")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>? problems;
+    private string newTitle = "";
+    private string newDescription = "";
+    private string newSector = "";
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProblems();
+    }
+
+    private async Task LoadProblems()
+    {
+        problems = await GetProblemsHandler.HandleAsync();
+    }
+
+    private async Task AddProblem()
+    {
+        errorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(newTitle) || string.IsNullOrWhiteSpace(newDescription))
+        {
+            errorMessage = "Başlık ve açıklama zorunludur.";
+            return;
+        }
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Problems.Commands.CreateProblemCommand
+            {
+                Title = newTitle,
+                Description = newDescription,
+                Sector = newSector
+            };
+
+            await CreateProblemHandler.HandleAsync(command);
+            newTitle = "";
+            newDescription = "";
+            newSector = "";
+            await LoadProblems();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Hata: {ex.Message}";
+        }
+    }
+}

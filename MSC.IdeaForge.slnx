@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MSC.IdeaForge.Application/MSC.IdeaForge.Application.csproj" />
+    <Project Path="src/MSC.IdeaForge.Domain/MSC.IdeaForge.Domain.csproj" />
+    <Project Path="src/MSC.IdeaForge.Infrastructure/MSC.IdeaForge.Infrastructure.csproj" />
+    <Project Path="src/MSC.IdeaForge.Web/MSC.IdeaForge.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MSC.IdeaForge.Tests/MSC.IdeaForge.Tests.csproj" />
+  </Folder>
+</Solution>
