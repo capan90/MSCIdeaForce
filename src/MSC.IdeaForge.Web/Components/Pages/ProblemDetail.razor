@@ -13,6 +13,9 @@
 @inject MSC.IdeaForge.Application.Opportunities.Commands.AIScoreOpportunityHandler AIScoreOpportunityHandler
 @inject MSC.IdeaForge.Application.Validations.Queries.GetValidationByProblemHandler GetValidationByProblemHandler
 @inject MSC.IdeaForge.Application.Validations.Commands.SaveValidationHandler SaveValidationHandler
+@inject MSC.IdeaForge.Application.Researches.Commands.SaveResearchHandler SaveResearchHandler
+@inject MSC.IdeaForge.Application.Researches.Commands.AIResearchHandler AIResearchHandler
+@inject MSC.IdeaForge.Application.Researches.Queries.GetResearchByProblemHandler GetResearchByProblemHandler
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 
@@ -50,7 +53,7 @@
     }
     else
     {
-        @* Sekme yapısı (Problem Detayı vs Sinyaller vs Fırsat Skoru vs Doğrulama vs AI Analizi) *@
+        @* Sekme yapısı (Problem Detayı vs Sinyaller vs Fırsat Skoru vs Doğrulama vs Araştırma vs AI Analizi) *@
         <ul class="nav nav-tabs mb-4">
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "detail" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("detail")'>Detay Bilgileri</button>
@@ -63,6 +66,9 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "validation" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("validation")'>Doğrulama</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "research" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("research")'>Araştırma</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "ai_analysis" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("ai_analysis")'>AI Analizi</button>
@@ -433,6 +439,80 @@
                 </div>
             </div>
         }
+        else if (activeTab == "research")
+        {
+            @* Araştırma Bölümü *@
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #0284c7, #0369a1); border-bottom: none;">
+                    <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                        <span class="bi bi-search"></span> Pazar &amp; Teknoloji Araştırması (Research)
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (researchSuccessMessage != "")
+                    {
+                        <div class="alert alert-success py-2 mb-3 small">@researchSuccessMessage</div>
+                    }
+                    @if (researchErrorMessage != "")
+                    {
+                        <div class="alert alert-danger py-2 mb-3 small">@researchErrorMessage</div>
+                    }
+
+                    @* AI ile Araştırma Butonu *@
+                    <div class="mb-4 d-flex justify-content-between align-items-center">
+                        @if (isAiResearching)
+                        {
+                            <button class="btn btn-outline-info btn-sm d-flex align-items-center gap-2" disabled>
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Yapay Zeka araştırıyor...
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-info btn-sm d-flex align-items-center gap-2" @onclick="RunAiResearch">
+                                <span class="bi bi-cpu-fill"></span> AI ile Araştır
+                            </button>
+                        }
+
+                        @if (researchDto?.ResearchedAt is not null)
+                        {
+                            <span class="text-muted small" style="font-size: 0.8rem;">Son Araştırma Tarihi: @researchDto.ResearchedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</span>
+                        }
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">Pazar Analizi</label>
+                            <textarea class="form-control form-control-sm" rows="4" placeholder="Pazar büyüklüğü, hedef kitle ve fırsat analizleri..." @bind="marketAnalysis"></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">Rakip Özeti</label>
+                            <textarea class="form-control form-control-sm" rows="4" placeholder="Doğrudan ve dolaylı rakipler, güçlü ve zayıf yönleri..." @bind="competitorSummary"></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">Teknoloji Notları</label>
+                            <textarea class="form-control form-control-sm" rows="4" placeholder="Kullanılacak teknolojiler, altyapı ve mimari alternatifleri..." @bind="technologyNotes"></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">Trend Notları</label>
+                            <textarea class="form-control form-control-sm" rows="4" placeholder="Sektörel trendler, büyüme oranları ve gelecek projeksiyonları..." @bind="trendNotes"></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">Kaynaklar</label>
+                            <textarea class="form-control form-control-sm" rows="3" placeholder="Referans linkler, raporlar ve dokümantasyon kaynakları..." @bind="researchSources"></textarea>
+                        </div>
+
+                        <div class="col-12 text-end">
+                            <button class="btn btn-primary btn-sm px-4" style="background-color: #0284c7; border-color: #0284c7;" @onclick="SaveResearch">Kaydet</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
         else if (activeTab == "ai_analysis")
         {
             @* AI Analiz Bölümü *@
@@ -535,6 +615,7 @@
     private IEnumerable<MSC.IdeaForge.Application.Signals.DTOs.SignalDto>? signals;
     private MSC.IdeaForge.Application.Opportunities.DTOs.OpportunityDto? opportunity;
     private MSC.IdeaForge.Application.Validations.DTOs.ValidationDto? validationDto;
+    private MSC.IdeaForge.Application.Researches.DTOs.ResearchDto? researchDto;
     private MSC.IdeaForge.Domain.Entities.ProblemAnalysis? problemAnalysis;
     private bool isLoading = true;
     private bool isAnalyzing = false;
@@ -577,9 +658,19 @@
     private string validationSuccessMessage = "";
     private string validationErrorMessage = "";
 
+    // Araştırma form alanları
+    private string marketAnalysis = "";
+    private string competitorSummary = "";
+    private string technologyNotes = "";
+    private string trendNotes = "";
+    private string researchSources = "";
+    private bool isAiResearching = false;
+    private string researchSuccessMessage = "";
+    private string researchErrorMessage = "";
+
     protected override async Task OnInitializedAsync()
     {
-        // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
+        // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
         try
         {
             problem = await GetProblemByIdHandler.HandleAsync(Id);
@@ -587,6 +678,7 @@
             await LoadOpportunity();
             await LoadValidation();
             await LoadProblemAnalysis();
+            await LoadResearch();
         }
         catch
         {
@@ -605,6 +697,8 @@
         opportunityErrorMessage = "";
         validationSuccessMessage = "";
         validationErrorMessage = "";
+        researchSuccessMessage = "";
+        researchErrorMessage = "";
     }
 
     private async Task LoadSignals()
@@ -674,6 +768,26 @@
         catch
         {
             problemAnalysis = null;
+        }
+    }
+
+    private async Task LoadResearch()
+    {
+        try
+        {
+            researchDto = await GetResearchByProblemHandler.HandleAsync(Id);
+            if (researchDto is not null)
+            {
+                marketAnalysis = researchDto.MarketAnalysis ?? "";
+                competitorSummary = researchDto.CompetitorSummary ?? "";
+                technologyNotes = researchDto.TechnologyNotes ?? "";
+                trendNotes = researchDto.TrendNotes ?? "";
+                researchSources = researchDto.Sources ?? "";
+            }
+        }
+        catch
+        {
+            researchDto = null;
         }
     }
 
@@ -808,6 +922,66 @@
         catch (Exception ex)
         {
             validationErrorMessage = $"Doğrulama verileri kaydedilirken hata oluştu: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Araştırma bilgilerini kaydeder.
+    /// </summary>
+    private async Task SaveResearch()
+    {
+        researchSuccessMessage = "";
+        researchErrorMessage = "";
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Researches.Commands.SaveResearchCommand
+            {
+                ProblemId = Id,
+                MarketAnalysis = marketAnalysis,
+                CompetitorSummary = competitorSummary,
+                TechnologyNotes = technologyNotes,
+                TrendNotes = trendNotes,
+                Sources = researchSources
+            };
+
+            await SaveResearchHandler.HandleAsync(command);
+            researchSuccessMessage = "Araştırma verileri başarıyla kaydedildi.";
+            await LoadResearch();
+        }
+        catch (Exception ex)
+        {
+            researchErrorMessage = $"Araştırma verileri kaydedilirken hata oluştu: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Yapay Zeka yardımıyla pazar araştırması gerçekleştirir ve kaydeder.
+    /// </summary>
+    private async Task RunAiResearch()
+    {
+        isAiResearching = true;
+        researchSuccessMessage = "";
+        researchErrorMessage = "";
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Researches.Commands.AIResearchCommand
+            {
+                ProblemId = Id
+            };
+
+            await AIResearchHandler.HandleAsync(command);
+            researchSuccessMessage = "Yapay zeka pazar, rakip, teknoloji ve trend araştırmasını başarıyla tamamladı ve kaydetti.";
+            await LoadResearch();
+        }
+        catch (Exception ex)
+        {
+            researchErrorMessage = $"Yapay zeka araştırması sırasında hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isAiResearching = false;
         }
     }
 

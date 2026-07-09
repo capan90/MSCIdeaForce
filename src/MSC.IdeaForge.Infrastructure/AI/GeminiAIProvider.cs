@@ -301,4 +301,105 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
         public int TechnicalFeasibility { get; set; }
         public string? TechnicalFeasibilityReason { get; set; }
     }
+
+    /// <summary>
+    /// Verilen problem hakkında detaylı pazar, rakip ve teknoloji araştırması yapar.
+    /// </summary>
+    public async Task<ResearchResult> ResearchProblemAsync(string title, string description, string? sector)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        // API Key kontrolü
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        // Gemini promptunu hazırlıyoruz
+        var prompt = $@"Aşağıdaki problemi araştır, rakipleri bul, pazar analizi yap, teknoloji notları yaz, trend notları çıkar ve kaynakları belirt. Yanıtı mutlaka JSON formatında döndür. JSON formatı şu alanları içermelidir:
+- MarketAnalysis (Pazar analizi detayları, Türkçe)
+- CompetitorSummary (Rakip analizi özeti, Türkçe)
+- TechnologyNotes (Kullanılabilecek teknolojiler ve mimari notları, Türkçe)
+- TrendNotes (Sektörel trendler ve gelecek projeksiyonları, Türkçe)
+- Sources (Araştırma kaynakları veya referans olabilecek linkler/dokümanlar, Türkçe)
+
+Problem Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+{{
+  ""MarketAnalysis"": ""pazar analizi detayları"",
+  ""CompetitorSummary"": ""rakip analizi özeti"",
+  ""TechnologyNotes"": ""teknoloji notları"",
+  ""TrendNotes"": ""trend notları"",
+  ""Sources"": ""kaynaklar""
+}}
+
+Sen profesyonel bir problem analisti ve pazar araştırmacısı yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    parts = new[]
+                    {
+                        new { text = prompt }
+                    }
+                }
+            }
+        };
+
+        // HTTP POST isteği gönderiyoruz
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(
+            requestUrl,
+            requestBody
+        );
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        // Eğer yapay zeka çıktıyı markdown kod bloğu olarak döndürdüyse temizliyoruz
+        if (jsonText.StartsWith("```json"))
+        {
+            jsonText = jsonText.Substring(7);
+        }
+        else if (jsonText.StartsWith("```"))
+        {
+            jsonText = jsonText.Substring(3);
+        }
+
+        if (jsonText.EndsWith("```"))
+        {
+            jsonText = jsonText.Substring(0, jsonText.Length - 3);
+        }
+
+        jsonText = jsonText.Trim();
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        var result = JsonSerializer.Deserialize<ResearchResult>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
 }

@@ -8,6 +8,8 @@ using MSC.IdeaForge.Application.Opportunities.Queries;
 using MSC.IdeaForge.Application.Validations.Commands;
 using MSC.IdeaForge.Application.Validations.Queries;
 using MSC.IdeaForge.Application.Dashboard;
+using MSC.IdeaForge.Application.Researches.Commands;
+using MSC.IdeaForge.Application.Researches.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -42,6 +44,11 @@ public static class DependencyInjection
 
         // Dashboard sorgulama işleyicisini ekliyoruz
         services.AddScoped<DashboardQueryHandler>();
+
+        // Araştırma işleyicilerini ekliyoruz
+        services.AddScoped<SaveResearchHandler>();
+        services.AddScoped<AIResearchHandler>();
+        services.AddScoped<GetResearchByProblemHandler>();
 
         return services;
     }

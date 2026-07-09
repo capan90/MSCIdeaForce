@@ -176,4 +176,9 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
     {
         throw new NotImplementedException();
     }
+
+    public Task<ResearchResult> ResearchProblemAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
 }

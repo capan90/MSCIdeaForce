@@ -20,4 +20,9 @@ public interface IAIProvider
     /// Verilen problem detaylarını fırsat skoru kriterlerine göre analiz edip puanlar.
     /// </summary>
     Task<OpportunityScoreResult> ScoreOpportunityAsync(string title, string description, string? sector);
+
+    /// <summary>
+    /// Verilen problem hakkında pazar, rakip ve teknoloji araştırması yapar.
+    /// </summary>
+    Task<ResearchResult> ResearchProblemAsync(string title, string description, string? sector);
 }

@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<IOpportunityRepository, OpportunityRepository>();
         services.AddScoped<IValidationRepository, ValidationRepository>();
         services.AddScoped<IProblemAnalysisRepository, ProblemAnalysisRepository>();
+        services.AddScoped<IResearchRepository, ResearchRepository>();
 
         // HttpClient ve GeminiAIProvider bağımlılıklarını ekliyoruz
         services.AddScoped<HttpClient>();

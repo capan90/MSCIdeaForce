@@ -155,4 +155,9 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
     {
         throw new NotImplementedException();
     }
+
+    public Task<ResearchResult> ResearchProblemAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
 }
