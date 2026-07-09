@@ -13,6 +13,11 @@ public interface IProblemAnalysisRepository
     Task<ProblemAnalysis?> GetByProblemIdAsync(Guid problemId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Toplam yapay zeka analiz kaydı sayısını döner.
+    /// </summary>
+    Task<int> GetCountAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Yeni bir yapay zeka analiz kaydı ekler.
     /// </summary>
     Task AddAsync(ProblemAnalysis problemAnalysis, CancellationToken cancellationToken = default);

@@ -171,7 +171,7 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
     /// <summary>
     /// Problemi fırsat skorlama kriterlerine göre analiz edip her kriter için 1-10 puan ve gerekçe üretir.
     /// </summary>
-    public async Task<OpportunityScoreResult> ScoreOpportunityAsync(string title, string description, string? sector)
+    public async Task<OpportunityScoreResult> ScoreOpportunityAsync(string title, string description, string? sector, string? founderContext = null)
     {
         var apiKey = _configuration["AI:Gemini:ApiKey"];
         var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
@@ -196,7 +196,7 @@ Problem Detayları:
 Başlık: {title}
 Açıklama: {description}
 Sektör: {sector ?? "Belirtilmemiş"}
-
+{(string.IsNullOrWhiteSpace(founderContext) ? "" : $"\nKurucu Profili (FounderFit skorunu bu bilgilere göre daha isabetli hesapla):\n{founderContext}\n")}
 Yanıt şeması tam olarak şu şekilde olmalıdır:
 {{
   ""ProblemSeverity"": 8,

@@ -12,6 +12,8 @@ public class DashboardDto
     public int AnalyzedProblemsCount { get; set; }
     public int ValidatedProblemsCount { get; set; }
     public int TotalSignalsCount { get; set; }
+    public int TotalAiAnalysisCount { get; set; }
+    public double AverageOpportunityScore { get; set; }
     public List<OpportunityProblemDto> TopOpportunityProblems { get; set; } = new();
     public List<RecentProblemDto> RecentProblems { get; set; } = new();
     public List<ValidationPendingProblemDto> ValidationPendingProblems { get; set; } = new();

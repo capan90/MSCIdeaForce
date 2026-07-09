@@ -151,7 +151,7 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
         public double ConfidenceScore { get; set; }
     }
 
-    public Task<OpportunityScoreResult> ScoreOpportunityAsync(string title, string description, string? sector)
+    public Task<OpportunityScoreResult> ScoreOpportunityAsync(string title, string description, string? sector, string? founderContext = null)
     {
         throw new NotImplementedException();
     }

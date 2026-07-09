@@ -18,8 +18,9 @@ public interface IAIProvider
 
     /// <summary>
     /// Verilen problem detaylarını fırsat skoru kriterlerine göre analiz edip puanlar.
+    /// Kurucu profili bağlamı (founderContext) verilirse Founder Fit skoru bu bilgiye göre daha isabetli hesaplanır.
     /// </summary>
-    Task<OpportunityScoreResult> ScoreOpportunityAsync(string title, string description, string? sector);
+    Task<OpportunityScoreResult> ScoreOpportunityAsync(string title, string description, string? sector, string? founderContext = null);
 
     /// <summary>
     /// Verilen problem hakkında pazar, rakip ve teknoloji araştırması yapar.

@@ -19,17 +19,20 @@ public class DashboardQueryHandler
     private readonly ISignalRepository _signalRepository;
     private readonly IOpportunityRepository _opportunityRepository;
     private readonly IValidationRepository _validationRepository;
+    private readonly IProblemAnalysisRepository _problemAnalysisRepository;
 
     public DashboardQueryHandler(
         IProblemRepository problemRepository,
         ISignalRepository signalRepository,
         IOpportunityRepository opportunityRepository,
-        IValidationRepository validationRepository)
+        IValidationRepository validationRepository,
+        IProblemAnalysisRepository problemAnalysisRepository)
     {
         _problemRepository = problemRepository;
         _signalRepository = signalRepository;
         _opportunityRepository = opportunityRepository;
         _validationRepository = validationRepository;
+        _problemAnalysisRepository = problemAnalysisRepository;
     }
 
     /// <summary>
@@ -42,11 +45,17 @@ public class DashboardQueryHandler
         var opportunities = (await _opportunityRepository.GetAllAsync(cancellationToken)).ToList();
         var validations = (await _validationRepository.GetAllAsync(cancellationToken)).ToList();
         var totalSignalsCount = await _signalRepository.GetCountAsync(cancellationToken);
+        var totalAiAnalysisCount = await _problemAnalysisRepository.GetCountAsync(cancellationToken);
 
         // İstatistik hesaplamaları
         var totalProblemsCount = problems.Count;
         var analyzedProblemsCount = problems.Count(p => p.Status == ProblemStatus.Analyzed);
         var validatedProblemsCount = problems.Count(p => p.Status == ProblemStatus.Validated);
+
+        // Ortalama fırsat skoru (fırsat kaydı olmayan durumda 0)
+        var averageOpportunityScore = opportunities.Any()
+            ? Math.Round(opportunities.Average(o => o.OpportunityScore.TotalScore), 1)
+            : 0.0;
 
         // En yüksek fırsat skoruna sahip ilk 5 problem
         var topOpportunityProblems = opportunities
@@ -102,6 +111,8 @@ public class DashboardQueryHandler
             AnalyzedProblemsCount = analyzedProblemsCount,
             ValidatedProblemsCount = validatedProblemsCount,
             TotalSignalsCount = totalSignalsCount,
+            TotalAiAnalysisCount = totalAiAnalysisCount,
+            AverageOpportunityScore = averageOpportunityScore,
             TopOpportunityProblems = topOpportunityProblems,
             RecentProblems = recentProblems,
             ValidationPendingProblems = validationPendingProblems

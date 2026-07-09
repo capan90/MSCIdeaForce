@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<Decision> Decisions => Set<Decision>();
     public DbSet<TrendAnalysis> TrendAnalyses => Set<TrendAnalysis>();
     public DbSet<RevenueAnalysis> RevenueAnalyses => Set<RevenueAnalysis>();
+    public DbSet<FounderProfile> FounderProfiles => Set<FounderProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -113,6 +114,13 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<RevenueAnalysis>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<FounderProfile>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }

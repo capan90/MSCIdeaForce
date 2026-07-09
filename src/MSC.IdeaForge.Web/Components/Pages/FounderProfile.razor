@@ -1,0 +1,242 @@
+@page "/founder-profile"
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Application.FounderProfiles.DTOs
+@inject MSC.IdeaForge.Application.FounderProfiles.Queries.GetFounderProfileHandler GetFounderProfileHandler
+@inject MSC.IdeaForge.Application.FounderProfiles.Commands.SaveFounderProfileHandler SaveFounderProfileHandler
+
+<PageTitle>Kurucu Profili</PageTitle>
+
+<div class="container mt-4" style="max-width: 800px;">
+    @* Sayfa Başlığı *@
+    <div class="mb-4">
+        <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Kurucu Profili (Founder Profile)</h1>
+        <p class="text-muted mb-0">Yeteneklerinizi ve kaynaklarınızı tanımlayın. Bu bilgiler fırsat skorlamasındaki "Founder Fit" (Kurucu Uyumu) puanını daha isabetli hale getirir.</p>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0 !important;">
+        <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); border-bottom: none;">
+            <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                <span class="bi bi-person-badge-fill"></span> Profil Bilgileri
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success py-2 mb-3 small">@successMessage</div>
+            }
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger py-2 mb-3 small">@errorMessage</div>
+            }
+
+            <div class="row g-3">
+                @* Ad Soyad *@
+                <div class="col-12">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Ad Soyad</label>
+                    <input class="form-control form-control-sm" placeholder="Adınız ve soyadınız" @bind="name" />
+                </div>
+
+                @* Yetenekler (chip) *@
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Yetenekler</label>
+                    <input class="form-control form-control-sm" placeholder="Yetenek yazıp Enter'a basın..."
+                           @bind="newSkill" @bind:event="oninput" @onkeydown="@(e => OnChipKeyDown(e, skills, () => newSkill, v => newSkill = v))" />
+                    <div class="d-flex flex-wrap gap-1 mt-2">
+                        @foreach (var item in skills)
+                        {
+                            <span class="badge bg-primary d-flex align-items-center gap-1 py-2 px-2">
+                                @item
+                                <span role="button" class="bi bi-x" @onclick="() => skills.Remove(item)"></span>
+                            </span>
+                        }
+                    </div>
+                </div>
+
+                @* Sektör Deneyimleri (chip) *@
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Sektör Deneyimleri</label>
+                    <input class="form-control form-control-sm" placeholder="Sektör yazıp Enter'a basın..."
+                           @bind="newIndustry" @bind:event="oninput" @onkeydown="@(e => OnChipKeyDown(e, industries, () => newIndustry, v => newIndustry = v))" />
+                    <div class="d-flex flex-wrap gap-1 mt-2">
+                        @foreach (var item in industries)
+                        {
+                            <span class="badge bg-info text-dark d-flex align-items-center gap-1 py-2 px-2">
+                                @item
+                                <span role="button" class="bi bi-x" @onclick="() => industries.Remove(item)"></span>
+                            </span>
+                        }
+                    </div>
+                </div>
+
+                @* Deneyim açıklaması *@
+                <div class="col-12">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Deneyim Açıklaması</label>
+                    <textarea class="form-control form-control-sm" rows="3" placeholder="Geçmiş iş/girişim deneyimleriniz..." @bind="experience"></textarea>
+                </div>
+
+                @* Ağ / Network *@
+                <div class="col-12">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Ağ / Network</label>
+                    <textarea class="form-control form-control-sm" rows="3" placeholder="Erişebildiğiniz kişiler, mentorlar, yatırımcılar, iş ortakları..." @bind="network"></textarea>
+                </div>
+
+                @* Sermaye durumu *@
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Sermaye Durumu</label>
+                    <select class="form-select form-select-sm" @bind="capital">
+                        <option value="Bootstrap">Bootstrap (Öz kaynak)</option>
+                        <option value="Düşük">Düşük</option>
+                        <option value="Orta">Orta</option>
+                        <option value="Yüksek">Yüksek</option>
+                    </select>
+                </div>
+
+                @* İlgi alanları (chip) *@
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">İlgi Alanları</label>
+                    <input class="form-control form-control-sm" placeholder="İlgi alanı yazıp Enter'a basın..."
+                           @bind="newInterest" @bind:event="oninput" @onkeydown="@(e => OnChipKeyDown(e, interests, () => newInterest, v => newInterest = v))" />
+                    <div class="d-flex flex-wrap gap-1 mt-2">
+                        @foreach (var item in interests)
+                        {
+                            <span class="badge bg-secondary d-flex align-items-center gap-1 py-2 px-2">
+                                @item
+                                <span role="button" class="bi bi-x" @onclick="() => interests.Remove(item)"></span>
+                            </span>
+                        }
+                    </div>
+                </div>
+
+                @* Biyografi *@
+                <div class="col-12">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Biyografi</label>
+                    <textarea class="form-control form-control-sm" rows="3" placeholder="Kendinizi kısaca tanıtın (opsiyonel)..." @bind="bio"></textarea>
+                </div>
+
+                <div class="col-12 text-end">
+                    <button class="btn btn-primary btn-sm px-4" style="background-color: #4f46e5; border-color: #4f46e5;" @onclick="SaveProfile" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        }
+                        else
+                        {
+                            <span>Kaydet</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Form alanları
+    private string name = "";
+    private string experience = "";
+    private string network = "";
+    private string capital = "Bootstrap";
+    private string? bio;
+
+    // Chip listeleri
+    private List<string> skills = new();
+    private List<string> industries = new();
+    private List<string> interests = new();
+
+    // Chip giriş alanları
+    private string newSkill = "";
+    private string newIndustry = "";
+    private string newInterest = "";
+
+    private bool isSaving = false;
+    private string successMessage = "";
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfile();
+    }
+
+    /// <summary>
+    /// Mevcut kurucu profilini yükler ve form alanlarını doldurur.
+    /// </summary>
+    private async Task LoadProfile()
+    {
+        var profile = await GetFounderProfileHandler.HandleAsync();
+        if (profile is not null)
+        {
+            name = profile.Name;
+            experience = profile.Experience;
+            network = profile.Network;
+            capital = string.IsNullOrWhiteSpace(profile.Capital) ? "Bootstrap" : profile.Capital;
+            bio = profile.Bio;
+            skills = SplitToList(profile.Skills);
+            industries = SplitToList(profile.Industries);
+            interests = SplitToList(profile.Interests);
+        }
+    }
+
+    /// <summary>
+    /// Enter tuşuna basıldığında ilgili chip listesine yeni öğe ekler.
+    /// </summary>
+    private void OnChipKeyDown(KeyboardEventArgs e, List<string> list, Func<string> getValue, Action<string> setValue)
+    {
+        if (e.Key != "Enter") return;
+
+        var value = getValue()?.Trim() ?? "";
+        if (!string.IsNullOrWhiteSpace(value) && !list.Contains(value, StringComparer.OrdinalIgnoreCase))
+        {
+            list.Add(value);
+        }
+        setValue("");
+    }
+
+    /// <summary>
+    /// Virgülle ayrılmış metni temizlenmiş bir listeye dönüştürür.
+    /// </summary>
+    private static List<string> SplitToList(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return new();
+        return value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+    }
+
+    /// <summary>
+    /// Kurucu profilini kaydeder.
+    /// </summary>
+    private async Task SaveProfile()
+    {
+        successMessage = "";
+        errorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errorMessage = "Ad Soyad zorunludur.";
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            await SaveFounderProfileHandler.HandleAsync(new MSC.IdeaForge.Application.FounderProfiles.Commands.SaveFounderProfileCommand
+            {
+                Name = name,
+                Skills = string.Join(", ", skills),
+                Industries = string.Join(", ", industries),
+                Experience = experience,
+                Network = network,
+                Capital = capital,
+                Interests = string.Join(", ", interests),
+                Bio = bio
+            });
+            successMessage = "Kurucu profili başarıyla kaydedildi ✓";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Kaydetme sırasında bir hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

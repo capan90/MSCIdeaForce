@@ -26,6 +26,14 @@ public class ProblemAnalysisRepository : IProblemAnalysisRepository
     }
 
     /// <summary>
+    /// Toplam yapay zeka analiz kaydı sayısını döner.
+    /// </summary>
+    public async Task<int> GetCountAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.ProblemAnalyses.CountAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Yeni bir yapay zeka analiz kaydı ekler.
     /// </summary>
     public async Task AddAsync(ProblemAnalysis problemAnalysis, CancellationToken cancellationToken = default)

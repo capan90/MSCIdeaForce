@@ -24,6 +24,8 @@ using MSC.IdeaForge.Application.Trends.Commands;
 using MSC.IdeaForge.Application.Trends.Queries;
 using MSC.IdeaForge.Application.Revenues.Commands;
 using MSC.IdeaForge.Application.Revenues.Queries;
+using MSC.IdeaForge.Application.FounderProfiles.Commands;
+using MSC.IdeaForge.Application.FounderProfiles.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -106,6 +108,10 @@ public static class DependencyInjection
         // Gelir Analizörü işleyicileri
         services.AddScoped<AnalyzeRevenueHandler>();
         services.AddScoped<GetRevenueAnalysisHandler>();
+
+        // Kurucu Profili işleyicileri
+        services.AddScoped<SaveFounderProfileHandler>();
+        services.AddScoped<GetFounderProfileHandler>();
 
         return services;
     }

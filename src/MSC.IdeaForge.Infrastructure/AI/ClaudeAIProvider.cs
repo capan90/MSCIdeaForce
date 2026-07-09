@@ -151,7 +151,7 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
         public double ConfidenceScore { get; set; }
     }
 
-    public Task<OpportunityScoreResult> ScoreOpportunityAsync(string title, string description, string? sector)
+    public Task<OpportunityScoreResult> ScoreOpportunityAsync(string title, string description, string? sector, string? founderContext = null)
     {
         throw new NotImplementedException();
     }

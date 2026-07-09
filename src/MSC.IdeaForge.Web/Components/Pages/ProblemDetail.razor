@@ -41,7 +41,33 @@
 
 <PageTitle>Problem Detayı</PageTitle>
 
-<div class="container mt-4" style="max-width: 800px;">
+@* Sekmelerin mobil uyumlu ve kaydırılabilir olması için stiller *@
+<style>
+    /* Çok sekme olduğunda yatay kaydırma; sekmeler alt satıra kırılmaz */
+    .problem-detail-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    .problem-detail-tabs .nav-item {
+        flex: 0 0 auto;
+    }
+    .problem-detail-tabs .nav-link {
+        white-space: nowrap;
+    }
+    /* İnce kaydırma çubuğu görünümü */
+    .problem-detail-tabs::-webkit-scrollbar {
+        height: 6px;
+    }
+    .problem-detail-tabs::-webkit-scrollbar-thumb {
+        background: #ced4da;
+        border-radius: 3px;
+    }
+</style>
+
+<div class="container-fluid mt-4" style="max-width: 1140px;">
     @* Geri dönme bağlantısı ve Sil butonu *@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <a href="/problems" class="btn btn-outline-secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;">
@@ -74,7 +100,7 @@
     else
     {
         @* Sekme yapısı (Problem Detayı vs Sinyaller vs Fırsat Skoru vs Doğrulama vs Araştırma vs Çözüm Önerileri vs MVP Planı vs AI Analizi) *@
-        <ul class="nav nav-tabs mb-4">
+        <ul class="nav nav-tabs mb-4 problem-detail-tabs flex-nowrap">
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "detail" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("detail")'>Detay Bilgileri</button>
             </li>
