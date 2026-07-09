@@ -25,4 +25,9 @@ public interface IAIProvider
     /// Verilen problem hakkında pazar, rakip ve teknoloji araştırması yapar.
     /// </summary>
     Task<ResearchResult> ResearchProblemAsync(string title, string description, string? sector);
+
+    /// <summary>
+    /// Verilen problem için olası 3 farklı çözüm önerisi sunar.
+    /// </summary>
+    Task<List<SolutionSuggestion>> SuggestSolutionsAsync(string title, string description, string? sector);
 }

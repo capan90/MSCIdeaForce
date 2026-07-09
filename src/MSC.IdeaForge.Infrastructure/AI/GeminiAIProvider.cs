@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using MSC.IdeaForge.Domain.Interfaces;
 using MSC.IdeaForge.Domain.ValueObjects;
+using MSC.IdeaForge.Domain.Enums;
 
 namespace MSC.IdeaForge.Infrastructure.AI;
 
@@ -401,5 +402,152 @@ Sen profesyonel bir problem analisti ve pazar araştırmacısı yapay zekasın. 
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Probleme yönelik olası 3 farklı çözüm önerisi sunar.
+    /// </summary>
+    public async Task<List<SolutionSuggestion>> SuggestSolutionsAsync(string title, string description, string? sector)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        // Gemini promptunu hazırlıyoruz
+        var prompt = $@"Aşağıdaki problem için olası 3 farklı alternatif çözüm yöntemi öner. Yanıtı mutlaka JSON formatında döndür.
+Yanıt, bir JSON array olmalıdır. Her eleman şu alanları içermelidir:
+- SolutionType (Şu değerlerden biri olmalıdır: WebApp, MobileApp, DesktopApp, SaaS, AIAgent, BrowserExtension, APIService, ERPModule, IoT, PhysicalProduct, ProcessImprovement, Education, Consulting, Hybrid)
+- Summary (Çözümün Türkçe kısa özeti)
+- Complexity (Şu değerlerden biri olmalıdır: Low, Medium, High, VeryHigh)
+- EstimatedDurationMonths (Tahmini yapım süresi, ay bazında tamsayı int)
+- EstimatedCost (Tahmini maliyet seviyesi / açıklaması, Türkçe)
+- Pros (Çözümün avantajları / artıları, Türkçe)
+- Cons (Çözümün dezavantajları / eksileri, Türkçe)
+- IsRecommended (Önerilen ana çözüm ise true, diğer alternatifler için false)
+
+Problem Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+[
+  {{
+    ""SolutionType"": ""WebApp"",
+    ""Summary"": ""Çözüm özeti..."",
+    ""Complexity"": ""Medium"",
+    ""EstimatedDurationMonths"": 4,
+    ""EstimatedCost"": ""Düşük bütçeli sunucu maliyetleri"",
+    ""Pros"": ""Hızlı canlıya alma imkanı"",
+    ""Cons"": ""Çevrimdışı çalışma desteği olmaması"",
+    ""IsRecommended"": true
+  }}
+]
+
+Sen profesyonel bir ürün yöneticisi yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON array döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    parts = new[]
+                    {
+                        new { text = prompt }
+                    }
+                }
+            }
+        };
+
+        // HTTP POST isteği gönderiyoruz
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(
+            requestUrl,
+            requestBody
+        );
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        // Eğer yapay zeka çıktıyı markdown kod bloğu olarak döndürdüyse temizliyoruz
+        if (jsonText.StartsWith("```json"))
+        {
+            jsonText = jsonText.Substring(7);
+        }
+        else if (jsonText.StartsWith("```"))
+        {
+            jsonText = jsonText.Substring(3);
+        }
+
+        if (jsonText.EndsWith("```"))
+        {
+            jsonText = jsonText.Substring(0, jsonText.Length - 3);
+        }
+
+        jsonText = jsonText.Trim();
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        var resultDto = JsonSerializer.Deserialize<List<SolutionSuggestionDto>>(jsonText, options);
+
+        if (resultDto is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        var suggestions = new List<SolutionSuggestion>();
+        foreach (var dto in resultDto)
+        {
+            if (!Enum.TryParse<SolutionType>(dto.SolutionType, true, out var type))
+            {
+                type = SolutionType.Hybrid;
+            }
+
+            if (!Enum.TryParse<ComplexityLevel>(dto.Complexity, true, out var comp))
+            {
+                comp = ComplexityLevel.Medium;
+            }
+
+            suggestions.Add(new SolutionSuggestion
+            {
+                SolutionType = type,
+                Summary = dto.Summary ?? string.Empty,
+                Complexity = comp,
+                EstimatedDurationMonths = dto.EstimatedDurationMonths,
+                EstimatedCost = dto.EstimatedCost,
+                Pros = dto.Pros,
+                Cons = dto.Cons,
+                IsRecommended = dto.IsRecommended
+            });
+        }
+
+        return suggestions;
+    }
+
+    private class SolutionSuggestionDto
+    {
+        public string? SolutionType { get; set; }
+        public string? Summary { get; set; }
+        public string? Complexity { get; set; }
+        public int EstimatedDurationMonths { get; set; }
+        public string? EstimatedCost { get; set; }
+        public string? Pros { get; set; }
+        public string? Cons { get; set; }
+        public bool IsRecommended { get; set; }
     }
 }

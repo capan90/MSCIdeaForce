@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Validation> Validations => Set<Validation>();
     public DbSet<ProblemAnalysis> ProblemAnalyses => Set<ProblemAnalysis>();
     public DbSet<Research> Researches => Set<Research>();
+    public DbSet<Solution> Solutions => Set<Solution>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,6 +62,12 @@ public class AppDbContext : DbContext
         });
 
         modelBuilder.Entity<Research>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<Solution>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasQueryFilter(e => !e.IsDeleted);

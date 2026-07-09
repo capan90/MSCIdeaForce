@@ -10,6 +10,8 @@ using MSC.IdeaForge.Application.Validations.Queries;
 using MSC.IdeaForge.Application.Dashboard;
 using MSC.IdeaForge.Application.Researches.Commands;
 using MSC.IdeaForge.Application.Researches.Queries;
+using MSC.IdeaForge.Application.Solutions.Commands;
+using MSC.IdeaForge.Application.Solutions.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -49,6 +51,12 @@ public static class DependencyInjection
         services.AddScoped<SaveResearchHandler>();
         services.AddScoped<AIResearchHandler>();
         services.AddScoped<GetResearchByProblemHandler>();
+
+        // Çözüm önerisi işleyicilerini ekliyoruz
+        services.AddScoped<SaveSolutionHandler>();
+        services.AddScoped<DeleteSolutionHandler>();
+        services.AddScoped<AISuggestSolutionsHandler>();
+        services.AddScoped<GetSolutionsByProblemHandler>();
 
         return services;
     }

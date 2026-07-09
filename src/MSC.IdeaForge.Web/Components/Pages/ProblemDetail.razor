@@ -16,6 +16,10 @@
 @inject MSC.IdeaForge.Application.Researches.Commands.SaveResearchHandler SaveResearchHandler
 @inject MSC.IdeaForge.Application.Researches.Commands.AIResearchHandler AIResearchHandler
 @inject MSC.IdeaForge.Application.Researches.Queries.GetResearchByProblemHandler GetResearchByProblemHandler
+@inject MSC.IdeaForge.Application.Solutions.Commands.SaveSolutionHandler SaveSolutionHandler
+@inject MSC.IdeaForge.Application.Solutions.Commands.DeleteSolutionHandler DeleteSolutionHandler
+@inject MSC.IdeaForge.Application.Solutions.Commands.AISuggestSolutionsHandler AISuggestSolutionsHandler
+@inject MSC.IdeaForge.Application.Solutions.Queries.GetSolutionsByProblemHandler GetSolutionsByProblemHandler
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 
@@ -53,7 +57,7 @@
     }
     else
     {
-        @* Sekme yapısı (Problem Detayı vs Sinyaller vs Fırsat Skoru vs Doğrulama vs Araştırma vs AI Analizi) *@
+        @* Sekme yapısı (Problem Detayı vs Sinyaller vs Fırsat Skoru vs Doğrulama vs Araştırma vs Çözüm Önerileri vs AI Analizi) *@
         <ul class="nav nav-tabs mb-4">
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "detail" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("detail")'>Detay Bilgileri</button>
@@ -69,6 +73,9 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "research" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("research")'>Araştırma</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "solutions" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("solutions")'>Çözüm Önerileri</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "ai_analysis" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("ai_analysis")'>AI Analizi</button>
@@ -513,6 +520,191 @@
                 </div>
             </div>
         }
+        else if (activeTab == "solutions")
+        {
+            @* Çözüm Önerileri Bölümü *@
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #198754, #0f5132); border-bottom: none;">
+                    <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                        <span class="bi bi-lightbulb-fill"></span> Çözüm Önerileri (Solution Engine)
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (solutionSuccessMessage != "")
+                    {
+                        <div class="alert alert-success py-2 mb-3 small">@solutionSuccessMessage</div>
+                    }
+                    @if (solutionErrorMessage != "")
+                    {
+                        <div class="alert alert-danger py-2 mb-3 small">@solutionErrorMessage</div>
+                    }
+
+                    @* AI ile Çözüm Öner Butonu *@
+                    <div class="mb-4">
+                        @if (isAiSuggestingSolutions)
+                        {
+                            <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-2" disabled>
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Yapay Zeka çözüm alternatifleri geliştiriyor...
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-2" @onclick="RunAiSuggestSolutions">
+                                <span class="bi bi-cpu-fill"></span> AI ile Çözüm Öner
+                            </button>
+                        }
+                    </div>
+
+                    @* Mevcut Çözüm Önerileri Kartları *@
+                    @if (solutions is null)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-success" role="status"></div>
+                            <p class="mt-2 text-muted small">Çözümler yükleniyor...</p>
+                        </div>
+                    }
+                    else if (!solutions.Any())
+                    {
+                        <div class="alert alert-light text-center py-4 border shadow-sm" style="border-radius: 8px;">
+                            Bu probleme ait henüz bir çözüm önerisi eklenmemiş. AI ile öneri alabilir veya manuel ekleyebilirsiniz.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row g-3 mb-4">
+                            @foreach (var sol in solutions)
+                            {
+                                <div class="col-md-6">
+                                    <div class="card h-100 shadow-sm border-0 position-relative" style="border-radius: 12px; border: 1px solid #e3e6f0; background-color: #fff; overflow: hidden; border-left: 5px solid @(sol.IsRecommended ? "#198754" : "#0d6efd") !important;">
+                                        @if (sol.IsRecommended)
+                                        {
+                                            <div class="position-absolute top-0 end-0 m-2">
+                                                <span class="badge bg-success px-2.5 py-1.5"><span class="bi bi-check-circle-fill"></span> Önerilen</span>
+                                            </div>
+                                        }
+                                        <div class="card-body p-3">
+                                            <h5 class="card-title font-weight-bold text-dark m-0 mb-2">@GetSolutionTypeText(sol.SolutionType)</h5>
+                                            <p class="card-text text-muted small mb-3" style="line-height: 1.5;">@sol.Summary</p>
+
+                                            <div class="row g-2 mb-3">
+                                                <div class="col-6">
+                                                    <span class="text-muted small d-block">Karmaşıklık</span>
+                                                    <span class="badge @GetComplexityBadgeClass(sol.Complexity)">@GetComplexityText(sol.Complexity)</span>
+                                                </div>
+                                                <div class="col-6">
+                                                    <span class="text-muted small d-block">Süre / Maliyet</span>
+                                                    <span class="text-dark small font-weight-bold">@sol.EstimatedDurationMonths Ay / @(string.IsNullOrEmpty(sol.EstimatedCost) ? "-" : sol.EstimatedCost)</span>
+                                                </div>
+                                            </div>
+
+                                            @if (!string.IsNullOrEmpty(sol.Pros))
+                                            {
+                                                <div class="mb-2">
+                                                    <span class="text-success small font-weight-bold d-block">&plus; Artılar:</span>
+                                                    <p class="text-muted small m-0">@sol.Pros</p>
+                                                </div>
+                                            }
+
+                                            @if (!string.IsNullOrEmpty(sol.Cons))
+                                            {
+                                                <div class="mb-2">
+                                                    <span class="text-danger small font-weight-bold d-block">&minus; Eksiler:</span>
+                                                    <p class="text-muted small m-0">@sol.Cons</p>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="card-footer bg-light border-0 text-end p-2">
+                                            <button class="btn btn-outline-danger btn-sm py-1 px-2" @onclick="() => DeleteSolution(sol.Id)" style="font-size: 0.8rem;">
+                                                <span class="bi bi-trash"></span> Sil
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @* Yeni Manuel Çözüm Ekleme Formu *@
+                    <div class="card border shadow-sm mb-0" style="border-radius: 12px; background-color: #fcfcfc;">
+                        <div class="card-header bg-secondary text-white py-2">
+                            <h6 class="m-0 font-weight-bold">Yeni Çözüm Alternatifi Ekle</h6>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1">Çözüm Türü</label>
+                                    <select class="form-select form-select-sm" @bind="newSolutionType">
+                                        <option value="@SolutionType.WebApp">Web Uygulaması</option>
+                                        <option value="@SolutionType.MobileApp">Mobil Uygulama</option>
+                                        <option value="@SolutionType.DesktopApp">Masaüstü Uygulama</option>
+                                        <option value="@SolutionType.SaaS">SaaS Platformu</option>
+                                        <option value="@SolutionType.AIAgent">Yapay Zeka Ajanı</option>
+                                        <option value="@SolutionType.BrowserExtension">Tarayıcı Eklentisi</option>
+                                        <option value="@SolutionType.APIService">API Servisi</option>
+                                        <option value="@SolutionType.ERPModule">ERP Modülü</option>
+                                        <option value="@SolutionType.IoT">IoT</option>
+                                        <option value="@SolutionType.PhysicalProduct">Fiziksel Ürün</option>
+                                        <option value="@SolutionType.ProcessImprovement">Süreç İyileştirme</option>
+                                        <option value="@SolutionType.Education">Eğitim</option>
+                                        <option value="@SolutionType.Consulting">Danışmanlık</option>
+                                        <option value="@SolutionType.Hybrid">Hibrit Model</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1">Karmaşıklık Seviyesi</label>
+                                    <select class="form-select form-select-sm" @bind="newComplexity">
+                                        <option value="@ComplexityLevel.Low">Düşük</option>
+                                        <option value="@ComplexityLevel.Medium">Orta</option>
+                                        <option value="@ComplexityLevel.High">Yüksek</option>
+                                        <option value="@ComplexityLevel.VeryHigh">Çok Yüksek</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">Tahmini Yapım Süresi (Ay)</label>
+                                    <input type="number" class="form-control form-control-sm" min="1" @bind="newSolutionDuration" />
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">Tahmini Maliyet</label>
+                                    <input type="text" class="form-control form-control-sm" placeholder="Örn: 50,000 TL / Aylık sunucu" @bind="newSolutionCost" />
+                                </div>
+
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="isRecCheck" @bind="newSolutionIsRecommended" />
+                                        <label class="form-check-label small text-muted font-weight-bold" for="isRecCheck">
+                                            Ana Çözüm Olarak Öner
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted mb-1">Çözüm Özeti</label>
+                                    <textarea class="form-control form-control-sm" rows="2" placeholder="Nasıl çalışacak, hangi problemi nasıl çözecek..." @bind="newSolutionSummary"></textarea>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1 text-success font-weight-bold">&plus; Avantajlar (Artılar)</label>
+                                    <textarea class="form-control form-control-sm" rows="2" placeholder="Hızlı entegrasyon, yüksek performans vb." @bind="newSolutionPros"></textarea>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1 text-danger font-weight-bold">&minus; Dezavantajlar (Eksiler)</label>
+                                    <textarea class="form-control form-control-sm" rows="2" placeholder="Yüksek bakım maliyeti, internet bağımlılığı vb." @bind="newSolutionCons"></textarea>
+                                </div>
+
+                                <div class="col-12 text-end">
+                                    <button class="btn btn-primary btn-sm px-4" @onclick="SaveManualSolution">Çözüm Ekle</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
         else if (activeTab == "ai_analysis")
         {
             @* AI Analiz Bölümü *@
@@ -616,6 +808,7 @@
     private MSC.IdeaForge.Application.Opportunities.DTOs.OpportunityDto? opportunity;
     private MSC.IdeaForge.Application.Validations.DTOs.ValidationDto? validationDto;
     private MSC.IdeaForge.Application.Researches.DTOs.ResearchDto? researchDto;
+    private IEnumerable<MSC.IdeaForge.Application.Solutions.DTOs.SolutionDto>? solutions;
     private MSC.IdeaForge.Domain.Entities.ProblemAnalysis? problemAnalysis;
     private bool isLoading = true;
     private bool isAnalyzing = false;
@@ -668,9 +861,23 @@
     private string researchSuccessMessage = "";
     private string researchErrorMessage = "";
 
+    // Çözüm form alanları
+    private bool isAiSuggestingSolutions = false;
+    private string solutionSuccessMessage = "";
+    private string solutionErrorMessage = "";
+
+    private SolutionType newSolutionType = SolutionType.WebApp;
+    private ComplexityLevel newComplexity = ComplexityLevel.Medium;
+    private string newSolutionSummary = "";
+    private int newSolutionDuration = 3;
+    private string newSolutionCost = "";
+    private string newSolutionPros = "";
+    private string newSolutionCons = "";
+    private bool newSolutionIsRecommended = false;
+
     protected override async Task OnInitializedAsync()
     {
-        // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
+        // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma, çözümler ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
         try
         {
             problem = await GetProblemByIdHandler.HandleAsync(Id);
@@ -679,6 +886,7 @@
             await LoadValidation();
             await LoadProblemAnalysis();
             await LoadResearch();
+            await LoadSolutions();
         }
         catch
         {
@@ -699,6 +907,8 @@
         validationErrorMessage = "";
         researchSuccessMessage = "";
         researchErrorMessage = "";
+        solutionSuccessMessage = "";
+        solutionErrorMessage = "";
     }
 
     private async Task LoadSignals()
@@ -788,6 +998,18 @@
         catch
         {
             researchDto = null;
+        }
+    }
+
+    private async Task LoadSolutions()
+    {
+        try
+        {
+            solutions = await GetSolutionsByProblemHandler.HandleAsync(Id);
+        }
+        catch
+        {
+            solutions = new List<MSC.IdeaForge.Application.Solutions.DTOs.SolutionDto>();
         }
     }
 
@@ -986,6 +1208,115 @@
     }
 
     /// <summary>
+    /// Yapay zeka ile 3 alternatif çözüm önerisi üretir.
+    /// </summary>
+    private async Task RunAiSuggestSolutions()
+    {
+        isAiSuggestingSolutions = true;
+        solutionSuccessMessage = "";
+        solutionErrorMessage = "";
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Solutions.Commands.AISuggestSolutionsCommand
+            {
+                ProblemId = Id
+            };
+
+            await AISuggestSolutionsHandler.HandleAsync(command);
+            solutionSuccessMessage = "Yapay zeka 3 farklı çözüm önerisi üretti ve listeyi güncelledi.";
+            await LoadSolutions();
+        }
+        catch (Exception ex)
+        {
+            solutionErrorMessage = $"Yapay zeka çözüm önerileri üretirken hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isAiSuggestingSolutions = false;
+        }
+    }
+
+    /// <summary>
+    /// Manuel çözüm önerisi ekler.
+    /// </summary>
+    private async Task SaveManualSolution()
+    {
+        solutionSuccessMessage = "";
+        solutionErrorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(newSolutionSummary))
+        {
+            solutionErrorMessage = "Çözüm özeti girmek zorunludur.";
+            return;
+        }
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Solutions.Commands.SaveSolutionCommand
+            {
+                ProblemId = Id,
+                SolutionType = newSolutionType,
+                Summary = newSolutionSummary,
+                Complexity = newComplexity,
+                EstimatedDurationMonths = newSolutionDuration,
+                EstimatedCost = newSolutionCost,
+                Pros = newSolutionPros,
+                Cons = newSolutionCons,
+                IsRecommended = newSolutionIsRecommended
+            };
+
+            await SaveSolutionHandler.HandleAsync(command);
+
+            // Form alanlarını sıfırlıyoruz.
+            newSolutionType = SolutionType.WebApp;
+            newComplexity = ComplexityLevel.Medium;
+            newSolutionSummary = "";
+            newSolutionDuration = 3;
+            newSolutionCost = "";
+            newSolutionPros = "";
+            newSolutionCons = "";
+            newSolutionIsRecommended = false;
+
+            solutionSuccessMessage = "Çözüm alternatifi başarıyla eklendi.";
+            await LoadSolutions();
+        }
+        catch (Exception ex)
+        {
+            solutionErrorMessage = $"Manuel çözüm eklenirken hata oluştu: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Belirtilen çözümü siler.
+    /// </summary>
+    private async Task DeleteSolution(Guid solutionId)
+    {
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Bu çözüm alternatifini silmek istediğinize emin misiniz?");
+        if (confirmed)
+        {
+            solutionSuccessMessage = "";
+            solutionErrorMessage = "";
+            try
+            {
+                var command = new MSC.IdeaForge.Application.Solutions.Commands.DeleteSolutionCommand
+                {
+                    ProblemId = Id,
+                    SolutionId = solutionId
+                };
+
+                await DeleteSolutionHandler.HandleAsync(command);
+                solutionSuccessMessage = "Çözüm alternatifi silindi.";
+                await LoadSolutions();
+            }
+            catch (Exception ex)
+            {
+                solutionErrorMessage = $"Çözüm alternatifi silinirken hata oluştu: {ex.Message}";
+            }
+        }
+    }
+
+    /// <summary>
     /// Kriter puanlarının ağırlıklı ortalamasını hesaplar.
     /// </summary>
     private double CalculateCurrentTotalScore()
@@ -1174,5 +1505,51 @@
         "Approved" => "Onaylandı",
         "Rejected" => "Reddedildi",
         _ => status
+    };
+
+    /// <summary>
+    /// Çözüm türünü Türkçe metne dönüştürür.
+    /// </summary>
+    private string GetSolutionTypeText(string type) => type switch
+    {
+        "WebApp" => "Web Uygulaması",
+        "MobileApp" => "Mobil Uygulama",
+        "DesktopApp" => "Masaüstü Uygulama",
+        "SaaS" => "SaaS Platformu",
+        "AIAgent" => "Yapay Zeka Ajanı",
+        "BrowserExtension" => "Tarayıcı Eklentisi",
+        "APIService" => "API Servisi",
+        "ERPModule" => "ERP Modülü",
+        "IoT" => "IoT Projesi",
+        "PhysicalProduct" => "Fiziksel Ürün",
+        "ProcessImprovement" => "Süreç İyileştirme",
+        "Education" => "Eğitim",
+        "Consulting" => "Danışmanlık",
+        "Hybrid" => "Hibrit Model",
+        _ => type
+    };
+
+    /// <summary>
+    /// Çözüm karmaşıklık seviyesini Türkçe metne dönüştürür.
+    /// </summary>
+    private string GetComplexityText(string complexity) => complexity switch
+    {
+        "Low" => "Düşük",
+        "Medium" => "Orta",
+        "High" => "Yüksek",
+        "VeryHigh" => "Çok Yüksek",
+        _ => complexity
+    };
+
+    /// <summary>
+    /// Karmaşıklığa uygun Bootstrap badge sınıfını döner.
+    /// </summary>
+    private string GetComplexityBadgeClass(string complexity) => complexity switch
+    {
+        "Low" => "bg-success text-white",
+        "Medium" => "bg-warning text-dark",
+        "High" => "bg-danger text-white",
+        "VeryHigh" => "bg-dark text-white",
+        _ => "bg-secondary text-white"
     };
 }
