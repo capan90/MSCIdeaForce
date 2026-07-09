@@ -28,6 +28,14 @@ public class SignalRepository : ISignalRepository
     }
 
     /// <summary>
+    /// Toplam sinyal sayısını döner.
+    /// </summary>
+    public async Task<int> GetCountAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Signals.CountAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Yeni bir sinyali veritabanı bağlamına ekler.
     /// </summary>
     public async Task AddAsync(Signal signal, CancellationToken cancellationToken = default)

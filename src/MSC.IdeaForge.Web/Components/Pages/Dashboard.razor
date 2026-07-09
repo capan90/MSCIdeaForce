@@ -1,0 +1,294 @@
+@page "/"
+@rendermode InteractiveServer
+@inject MSC.IdeaForge.Application.Dashboard.DashboardQueryHandler DashboardQueryHandler
+@inject NavigationManager NavigationManager
+
+<PageTitle>Dashboard - MSC IdeaForge</PageTitle>
+
+<div class="container-fluid py-4" style="max-width: 1200px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 font-weight-bold text-dark mb-1">Yönetim Paneli</h1>
+            <p class="text-muted small mb-0">MSC IdeaForge genel durum göstergeleri ve özet verileri</p>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Veriler yükleniyor...</p>
+        </div>
+    }
+    else if (data is null)
+    {
+        <div class="alert alert-danger text-center">
+            Dashboard verileri yüklenirken bir hata oluştu.
+        </div>
+    }
+    else
+    {
+        @* KPI Kartları *@
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="card shadow-sm border-0 h-100 p-3" style="border-radius: 12px; background: linear-gradient(135deg, #f8f9fc, #ffffff); border-left: 4px solid #0d6efd !important;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted text-uppercase small font-weight-bold">Toplam Problem</span>
+                            <h2 class="font-weight-bold text-dark m-0 mt-1">@data.TotalProblemsCount</h2>
+                        </div>
+                        <span class="bi bi-lightbulb-fill text-primary" style="font-size: 1.8rem;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="card shadow-sm border-0 h-100 p-3" style="border-radius: 12px; background: linear-gradient(135deg, #f8f9fc, #ffffff); border-left: 4px solid #6f42c1 !important;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted text-uppercase small font-weight-bold">Analiz Edildi</span>
+                            <h2 class="font-weight-bold text-dark m-0 mt-1">@data.AnalyzedProblemsCount</h2>
+                        </div>
+                        <span class="bi bi-cpu-fill" style="font-size: 1.8rem; color: #6f42c1;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="card shadow-sm border-0 h-100 p-3" style="border-radius: 12px; background: linear-gradient(135deg, #f8f9fc, #ffffff); border-left: 4px solid #198754 !important;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted text-uppercase small font-weight-bold">Doğrulandı</span>
+                            <h2 class="font-weight-bold text-dark m-0 mt-1">@data.ValidatedProblemsCount</h2>
+                        </div>
+                        <span class="bi bi-shield-fill-check text-success" style="font-size: 1.8rem;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="card shadow-sm border-0 h-100 p-3" style="border-radius: 12px; background: linear-gradient(135deg, #f8f9fc, #ffffff); border-left: 4px solid #0dcaf0 !important;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted text-uppercase small font-weight-bold">Toplam Sinyal</span>
+                            <h2 class="font-weight-bold text-dark m-0 mt-1">@data.TotalSignalsCount</h2>
+                        </div>
+                        <span class="bi bi-broadcast-pin text-info" style="font-size: 1.8rem;"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Detay Listeleri ve Tablolar *@
+        <div class="row g-4">
+            @* Sol Kolon: Fırsatlar ve Son Eklenenler *@
+            <div class="col-lg-8 d-flex flex-column gap-4">
+                @* En Yüksek Fırsat Skoru Tablosu *@
+                <div class="card shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                    <div class="card-header bg-success text-white py-3 border-bottom-0">
+                        <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                            <span class="bi bi-star-fill"></span> En Yüksek Fırsat Skorlu Problemler (İlk 5)
+                        </h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col" style="width: 60%;">Problem</th>
+                                    <th scope="col" class="text-center" style="width: 20%;">Durum</th>
+                                    <th scope="col" class="text-end" style="width: 20%;">Fırsat Skoru</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!data.TopOpportunityProblems.Any())
+                                {
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted py-4">Henüz puanlanmış bir fırsat bulunmuyor.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var opportunity in data.TopOpportunityProblems)
+                                    {
+                                        <tr @onclick="() => NavigateToProblem(opportunity.Id)" style="cursor: pointer;">
+                                            <td>
+                                                <span class="font-weight-bold text-dark d-block">@opportunity.Title</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge @GetStatusBadgeClass(opportunity.Status)">@GetStatusText(opportunity.Status)</span>
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="badge bg-success font-weight-bold text-white px-2 py-1.5" style="font-size: 0.9rem;">
+                                                    @opportunity.OpportunityScore.ToString("F1")
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                @* Son Eklenen Problemler Tablosu *@
+                <div class="card shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                    <div class="card-header bg-primary text-white py-3 border-bottom-0">
+                        <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                            <span class="bi bi-clock-history"></span> Son Eklenen Problemler
+                        </h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col" style="width: 45%;">Problem</th>
+                                    <th scope="col" class="text-center" style="width: 20%;">Öncelik</th>
+                                    <th scope="col" class="text-center" style="width: 20%;">Durum</th>
+                                    <th scope="col" class="text-end" style="width: 15%;">Eklenme</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!data.RecentProblems.Any())
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">Sistemde kayıtlı problem bulunmuyor.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var problem in data.RecentProblems)
+                                    {
+                                        <tr @onclick="() => NavigateToProblem(problem.Id)" style="cursor: pointer;">
+                                            <td>
+                                                <span class="font-weight-bold text-dark d-block text-truncate" style="max-width: 280px;">@problem.Title</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge @GetPriorityBadgeClass(problem.Priority)">@GetPriorityText(problem.Priority)</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge @GetStatusBadgeClass(problem.Status)">@GetStatusText(problem.Status)</span>
+                                            </td>
+                                            <td class="text-end text-muted small">
+                                                @FormatRelativeTime(problem.CreatedAt)
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            @* Sağ Kolon: Doğrulama Bekleyenler *@
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px; overflow: hidden;">
+                    <div class="card-header bg-warning text-dark py-3 border-bottom-0">
+                        <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                            <span class="bi bi-shield-exclamation"></span> Doğrulama Bekleyenler
+                        </h5>
+                    </div>
+                    <div class="card-body p-3">
+                        @if (!data.ValidationPendingProblems.Any())
+                        {
+                            <div class="alert alert-light text-center text-muted py-4 border shadow-none mb-0">
+                                Harika! Doğrulama bekleyen hiçbir problem bulunmuyor.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column gap-2" style="max-height: 520px; overflow-y: auto;">
+                                @foreach (var pending in data.ValidationPendingProblems)
+                                {
+                                    <div class="p-3 bg-light rounded hover-shadow cursor-pointer transition" @onclick="() => NavigateToProblem(pending.Id)" style="border-left: 4px solid #ffc107; cursor: pointer; border: 1px solid #e3e6f0; border-left-width: 4px;">
+                                        <span class="font-weight-bold text-dark d-block text-truncate" style="font-size: 0.9rem;">@pending.Title</span>
+                                        <div class="d-flex justify-content-between align-items-center mt-2">
+                                            <span class="badge @GetPriorityBadgeClass(pending.Priority)" style="font-size: 0.75rem;">@GetPriorityText(pending.Priority)</span>
+                                            <span class="text-muted small" style="font-size: 0.75rem;">@FormatRelativeTime(pending.CreatedAt)</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private MSC.IdeaForge.Application.Dashboard.DashboardDto? data;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            data = await DashboardQueryHandler.HandleAsync(new MSC.IdeaForge.Application.Dashboard.DashboardQuery());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Dashboard error: {ex.Message}");
+            data = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void NavigateToProblem(Guid id)
+    {
+        NavigationManager.NavigateTo($"/problems/{id}");
+    }
+
+    private string GetStatusText(string status) => status switch
+    {
+        "Draft" => "Taslak",
+        "Discovered" => "Keşfedildi",
+        "Analyzed" => "Analiz Edildi",
+        "Validated" => "Doğrulandı",
+        "Archived" => "Arşivlendi",
+        _ => status
+    };
+
+    private string GetPriorityText(string priority) => priority switch
+    {
+        "Low" => "Düşük",
+        "Medium" => "Orta",
+        "High" => "Yüksek",
+        "Critical" => "Kritik",
+        _ => priority
+    };
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "Draft" => "bg-secondary text-white",
+        "Discovered" => "bg-info text-dark",
+        "Analyzed" => "bg-primary text-white",
+        "Validated" => "bg-success text-white",
+        "Archived" => "bg-dark text-white",
+        _ => "bg-secondary text-white"
+    };
+
+    private string GetPriorityBadgeClass(string priority) => priority switch
+    {
+        "Low" => "bg-success text-white",
+        "Medium" => "bg-warning text-dark",
+        "High" => "bg-danger text-white",
+        "Critical" => "bg-dark text-white",
+        _ => "bg-secondary text-white"
+    };
+
+    private string FormatRelativeTime(DateTime dateTime)
+    {
+        var span = DateTime.UtcNow - dateTime.ToUniversalTime();
+        if (span.TotalDays > 365) return $"{Math.Floor(span.TotalDays / 365)} yıl önce";
+        if (span.TotalDays > 30) return $"{Math.Floor(span.TotalDays / 30)} ay önce";
+        if (span.TotalDays > 1) return $"{Math.Floor(span.TotalDays)} gün önce";
+        if (span.TotalHours > 1) return $"{Math.Floor(span.TotalHours)} saat önce";
+        if (span.TotalMinutes > 1) return $"{Math.Floor(span.TotalMinutes)} dakika önce";
+        return "Az önce";
+    }
+}

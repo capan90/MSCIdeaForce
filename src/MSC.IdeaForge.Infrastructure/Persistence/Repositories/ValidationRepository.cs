@@ -26,6 +26,14 @@ public class ValidationRepository : IValidationRepository
     }
 
     /// <summary>
+    /// Tüm doğrulama kayıtlarını listeler.
+    /// </summary>
+    public async Task<IEnumerable<Validation>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Validations.ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Yeni bir doğrulama kaydı ekler.
     /// </summary>
     public async Task AddAsync(Validation validation, CancellationToken cancellationToken = default)

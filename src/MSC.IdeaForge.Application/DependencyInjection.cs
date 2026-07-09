@@ -7,6 +7,7 @@ using MSC.IdeaForge.Application.Opportunities.Commands;
 using MSC.IdeaForge.Application.Opportunities.Queries;
 using MSC.IdeaForge.Application.Validations.Commands;
 using MSC.IdeaForge.Application.Validations.Queries;
+using MSC.IdeaForge.Application.Dashboard;
 
 namespace MSC.IdeaForge.Application;
 
@@ -38,6 +39,9 @@ public static class DependencyInjection
         // Doğrulama işleyicilerini ekliyoruz
         services.AddScoped<SaveValidationHandler>();
         services.AddScoped<GetValidationByProblemHandler>();
+
+        // Dashboard sorgulama işleyicisini ekliyoruz
+        services.AddScoped<DashboardQueryHandler>();
 
         return services;
     }

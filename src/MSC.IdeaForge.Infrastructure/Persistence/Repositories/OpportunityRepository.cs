@@ -26,6 +26,14 @@ public class OpportunityRepository : IOpportunityRepository
     }
 
     /// <summary>
+    /// Tüm fırsat değerlendirmelerini listeler.
+    /// </summary>
+    public async Task<IEnumerable<Opportunity>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Opportunities.ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Yeni bir fırsat kaydını veritabanına ekler.
     /// </summary>
     public async Task AddAsync(Opportunity opportunity, CancellationToken cancellationToken = default)

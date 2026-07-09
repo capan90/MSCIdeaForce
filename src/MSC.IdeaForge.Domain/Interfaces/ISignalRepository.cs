@@ -13,6 +13,11 @@ public interface ISignalRepository
     Task<IEnumerable<Signal>> GetByProblemIdAsync(Guid problemId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Toplam sinyal sayısını döner.
+    /// </summary>
+    Task<int> GetCountAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Yeni bir sinyal kaydeder.
     /// </summary>
     Task AddAsync(Signal signal, CancellationToken cancellationToken = default);

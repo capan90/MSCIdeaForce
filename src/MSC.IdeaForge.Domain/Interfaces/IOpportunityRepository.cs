@@ -13,6 +13,11 @@ public interface IOpportunityRepository
     Task<Opportunity?> GetByProblemIdAsync(Guid problemId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Tüm fırsat değerlendirmelerini getirir.
+    /// </summary>
+    Task<IEnumerable<Opportunity>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Yeni bir fırsat değerlendirmesi ekler.
     /// </summary>
     Task AddAsync(Opportunity opportunity, CancellationToken cancellationToken = default);

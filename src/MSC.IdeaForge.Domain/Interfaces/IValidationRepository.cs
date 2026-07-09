@@ -13,6 +13,11 @@ public interface IValidationRepository
     Task<Validation?> GetByProblemIdAsync(Guid problemId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Tüm doğrulama kayıtlarını getirir.
+    /// </summary>
+    Task<IEnumerable<Validation>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Yeni bir doğrulama kaydı ekler.
     /// </summary>
     Task AddAsync(Validation validation, CancellationToken cancellationToken = default);
