@@ -5,6 +5,7 @@
 @inject MSC.IdeaForge.Application.Knowledge.Queries.GetAllKnowledgeHandler GetAllKnowledgeHandler
 @inject MSC.IdeaForge.Application.Knowledge.Commands.CreateKnowledgeHandler CreateKnowledgeHandler
 @inject MSC.IdeaForge.Application.Knowledge.Commands.DeleteKnowledgeHandler DeleteKnowledgeHandler
+@inject MSC.IdeaForge.Application.Knowledge.Commands.UpdateKnowledgeHandler UpdateKnowledgeHandler
 @inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
 @inject IJSRuntime JsRuntime
 
@@ -75,34 +76,77 @@
                             <span class="badge bg-white text-dark small">@GetCategoryText(entry.Category)</span>
                             <span class="text-white-50 font-mono" style="font-size: 0.75rem;">@entry.LearnedAt.ToLocalTime().ToString("yyyy-MM-dd")</span>
                         </div>
-                        <div class="card-body p-3 d-flex flex-column">
-                            <h5 class="card-title font-weight-bold text-dark mb-2" style="font-size: 1.1rem; line-height: 1.3;">@entry.Title</h5>
-                            <p class="card-text text-muted small flex-grow-1" style="line-height: 1.5;">
-                                @GetSummary(entry.Content)
-                            </p>
-
-                            @if (!string.IsNullOrEmpty(entry.Tags))
-                            {
-                                <div class="mt-2 mb-3">
-                                    @foreach (var tag in entry.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
-                                    {
-                                        <span class="badge bg-light text-secondary me-1 font-weight-normal border">#@tag.Trim()</span>
-                                    }
+                        @if (editingId == entry.Id)
+                        {
+                            <div class="card-body p-3 d-flex flex-column gap-2">
+                                <div>
+                                    <label class="form-label small text-muted mb-0 font-weight-bold">Başlık</label>
+                                    <input type="text" class="form-control form-control-sm" @bind="editTitle" />
                                 </div>
-                            }
-
-                            @if (entry.ProblemId.HasValue && problemsMap.TryGetValue(entry.ProblemId.Value, out var probTitle))
-                            {
-                                <div class="p-2 bg-light rounded text-muted mb-3 d-flex align-items-center gap-1.5" style="font-size: 0.75rem; border-left: 3px solid #6c757d;">
-                                    <span class="bi bi-link-45deg"></span> Problem: <strong class="text-dark">@probTitle</strong>
+                                <div>
+                                    <label class="form-label small text-muted mb-0 font-weight-bold">İçerik</label>
+                                    <textarea class="form-control form-control-sm" rows="4" @bind="editContent"></textarea>
                                 </div>
-                            }
-                        </div>
-                        <div class="card-footer bg-light border-0 text-end p-2">
-                            <button class="btn btn-outline-danger btn-sm py-1 px-2.5" @onclick="() => DeleteEntry(entry.Id)" style="font-size: 0.8rem;">
-                                <span class="bi bi-trash"></span> Sil
-                            </button>
-                        </div>
+                                <div>
+                                    <label class="form-label small text-muted mb-0 font-weight-bold">Kategori</label>
+                                    <select class="form-select form-select-sm" @bind="editCategory">
+                                        <option value="@KnowledgeCategory.LessonLearned">Edinilen Tecrübe</option>
+                                        <option value="@KnowledgeCategory.SimilarProblem">Benzer Problem</option>
+                                        <option value="@KnowledgeCategory.SimilarProduct">Benzer Ürün</option>
+                                        <option value="@KnowledgeCategory.MarketInsight">Pazar Analizi</option>
+                                        <option value="@KnowledgeCategory.TechInsight">Teknolojik Analiz</option>
+                                        <option value="@KnowledgeCategory.CustomerInsight">Müşteri Görüşü</option>
+                                        <option value="@KnowledgeCategory.Decision">Karar</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label small text-muted mb-0 font-weight-bold">Etiketler</label>
+                                    <input type="text" class="form-control form-control-sm" @bind="editTags" placeholder="saas, fiyatlandırma" />
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light border-0 text-end p-2 d-flex justify-content-end gap-1.5">
+                                <button class="btn btn-primary btn-sm py-1 px-2.5" @onclick="SaveEdit" style="font-size: 0.8rem;">
+                                    Kaydet
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm py-1 px-2.5" @onclick="CancelEdit" style="font-size: 0.8rem;">
+                                    İptal
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="card-body p-3 d-flex flex-column">
+                                <h5 class="card-title font-weight-bold text-dark mb-2" style="font-size: 1.1rem; line-height: 1.3;">@entry.Title</h5>
+                                <p class="card-text text-muted small flex-grow-1" style="line-height: 1.5;">
+                                    @GetSummary(entry.Content)
+                                </p>
+
+                                @if (!string.IsNullOrEmpty(entry.Tags))
+                                {
+                                    <div class="mt-2 mb-3">
+                                        @foreach (var tag in entry.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                        {
+                                            <span class="badge bg-light text-secondary me-1 font-weight-normal border">#@tag.Trim()</span>
+                                        }
+                                    </div>
+                                }
+
+                                @if (entry.ProblemId.HasValue && problemsMap.TryGetValue(entry.ProblemId.Value, out var probTitle))
+                                {
+                                    <div class="p-2 bg-light rounded text-muted mb-3 d-flex align-items-center gap-1.5" style="font-size: 0.75rem; border-left: 3px solid #6c757d;">
+                                        <span class="bi bi-link-45deg"></span> Problem: <strong class="text-dark">@probTitle</strong>
+                                    </div>
+                                }
+                            </div>
+                            <div class="card-footer bg-light border-0 text-end p-2 d-flex justify-content-end gap-1.5">
+                                <button class="btn btn-outline-primary btn-sm py-1 px-2.5" @onclick="() => StartEdit(entry)" style="font-size: 0.8rem;">
+                                    <span class="bi bi-pencil"></span> Düzenle
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm py-1 px-2.5" @onclick="() => DeleteEntry(entry.Id)" style="font-size: 0.8rem;">
+                                    <span class="bi bi-trash"></span> Sil
+                                </button>
+                            </div>
+                        }
                     </div>
                 </div>
             }
@@ -196,6 +240,16 @@
 
     private string successMessage = "";
     private string errorMessage = "";
+
+    // Düzenleme State Alanları
+    private Guid? editingId = null;
+    private string editTitle = "";
+    private string editContent = "";
+    private string editTags = "";
+    private KnowledgeCategory editCategory;
+    private Guid? editProblemId;
+    private string? editSource;
+    private DateTime editLearnedAt;
 
     protected override async Task OnInitializedAsync()
     {
@@ -294,6 +348,66 @@
             {
                 errorMessage = $"Bilgi silinirken hata oluştu: {ex.Message}";
             }
+        }
+    }
+
+    private void StartEdit(KnowledgeDto entry)
+    {
+        editingId = entry.Id;
+        editTitle = entry.Title;
+        editContent = entry.Content;
+        editTags = entry.Tags ?? "";
+        
+        if (Enum.TryParse<KnowledgeCategory>(entry.Category, out var category))
+        {
+            editCategory = category;
+        }
+        else
+        {
+            editCategory = KnowledgeCategory.LessonLearned;
+        }
+
+        editProblemId = entry.ProblemId;
+        editSource = entry.Source;
+        editLearnedAt = entry.LearnedAt;
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+    }
+
+    private async Task SaveEdit()
+    {
+        if (editingId == null) return;
+        if (string.IsNullOrWhiteSpace(editTitle) || string.IsNullOrWhiteSpace(editContent))
+        {
+            errorMessage = "Düzenleme sırasında Başlık ve İçerik alanları zorunludur.";
+            return;
+        }
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Knowledge.Commands.UpdateKnowledgeCommand
+            {
+                Id = editingId.Value,
+                Title = editTitle,
+                Content = editContent,
+                Category = editCategory,
+                Tags = editTags,
+                ProblemId = editProblemId,
+                Source = editSource,
+                LearnedAt = editLearnedAt
+            };
+
+            await UpdateKnowledgeHandler.HandleAsync(command);
+            editingId = null;
+            successMessage = "Bilgi bankası girdisi başarıyla güncellendi.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Güncelleme sırasında hata oluştu: {ex.Message}";
         }
     }
 

@@ -2,59 +2,194 @@
 @rendermode InteractiveServer
 @inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
 @inject MSC.IdeaForge.Application.Problems.Commands.CreateProblemHandler CreateProblemHandler
+@inject MSC.IdeaForge.Application.Opportunities.Queries.GetOpportunityByProblemHandler GetOpportunityByProblemHandler
 
-<h2>Problemler</h2>
+<PageTitle>Problemler</PageTitle>
 
-<div style="margin-bottom:1rem">
-    <input placeholder="Başlık" @bind="newTitle" style="width:200px;margin-right:8px" />
-    <input placeholder="Açıklama" @bind="newDescription" style="width:300px;margin-right:8px" />
-    <input placeholder="Sektör" @bind="newSector" style="width:120px;margin-right:8px" />
-    <button @onclick="AddProblem">Problem Ekle</button>
-</div>
+<div class="container mt-4">
+    @* Sayfa Başlığı *@
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Problem Havuzu</h1>
+            <p class="text-muted mb-0">Toplanan problemleri listeleyin, puanlayın ve yönetin.</p>
+        </div>
+    </div>
 
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <p style="color:red">@errorMessage</p>
-}
-
-@if (problems is null)
-{
-    <p>Yükleniyor...</p>
-}
-else if (!problems.Any())
-{
-    <p>Henüz problem eklenmedi. İlk problemini ekle.</p>
-}
-else
-{
-    <table>
-        <thead>
-            <tr>
-                <th>Başlık</th>
-                <th>Durum</th>
-                <th>Öncelik</th>
-                <th>Sektör</th>
-                <th>Tarih</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var p in problems)
+    @* Yeni Problem Ekleme Formu *@
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fcfcfc; border: 1px solid #e3e6f0 !important;">
+        <div class="card-header bg-dark text-white py-2.5">
+            <h6 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                <span class="bi bi-plus-circle-fill"></span> Yeni Problem Ekle
+            </h6>
+        </div>
+        <div class="card-body p-3">
+            @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <tr>
-                    @* Başlık hücresini detay sayfasına yönlendiren bir linke dönüştürüyoruz *@
-                    <td><a href="/problems/@p.Id">@p.Title</a></td>
-                    <td>@GetStatusText(p.Status)</td>
-                    <td>@GetPriorityText(p.Priority)</td>
-                    <td>@p.Sector</td>
-                    <td>@p.CreatedAt.ToString("yyyy-MM-dd")</td>
-                </tr>
+                <div class="alert alert-danger py-2 mb-3 small">@errorMessage</div>
             }
-        </tbody>
-    </table>
-}
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <input class="form-control form-control-sm" placeholder="Problem Başlığı..." @bind="newTitle" />
+                </div>
+                <div class="col-md-5">
+                    <input class="form-control form-control-sm" placeholder="Problem Detayı ve Açıklaması..." @bind="newDescription" />
+                </div>
+                <div class="col-md-2">
+                    <input class="form-control form-control-sm" placeholder="Sektör..." @bind="newSector" />
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary btn-sm w-100" @onclick="AddProblem">Problem Ekle</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Gelişmiş Filtreler & Sıralama *@
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0 !important;">
+        <div class="card-body p-3">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Arama</label>
+                    <input type="text" class="form-control form-control-sm" placeholder="Başlık veya açıklamada ara..." @bind="searchQuery" @bind:event="oninput" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Sektör</label>
+                    <select class="form-select form-select-sm" @bind="selectedSector">
+                        <option value="">Tüm Sektörler</option>
+                        @foreach (var sector in UniqueSectors)
+                        {
+                            <option value="@sector">@sector</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Durum</label>
+                    <select class="form-select form-select-sm" @bind="selectedStatus">
+                        <option value="">Tüm Durumlar</option>
+                        <option value="Draft">Taslak</option>
+                        <option value="Discovered">Keşfedildi</option>
+                        <option value="Analyzed">Analiz Edildi</option>
+                        <option value="Validated">Doğrulandı</option>
+                        <option value="Archived">Arşivlendi</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Öncelik</label>
+                    <select class="form-select form-select-sm" @bind="selectedPriority">
+                        <option value="">Tüm Öncelikler</option>
+                        <option value="Low">Düşük</option>
+                        <option value="Medium">Orta</option>
+                        <option value="High">Yüksek</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button class="btn btn-outline-secondary btn-sm w-50" @onclick="ToggleDateSort">
+                        📅 Tarih @(sortColumn == "Date" ? (sortAsc ? "▲" : "▼") : "")
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm w-50" @onclick="ToggleScoreSort">
+                        🔥 Fırsat @(sortColumn == "Score" ? (sortAsc ? "▲" : "▼") : "")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Problemler Tablosu *@
+    @if (problems is null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted small">Problemler yükleniyor...</p>
+        </div>
+    }
+    else if (!problems.Any())
+    {
+        <div class="alert alert-light text-center py-5 border shadow-sm" style="border-radius: 12px;">
+            Hiç problem eklenmemiş. Yeni bir problem ekleyerek başlayın.
+        </div>
+    }
+    else if (!FilteredProblems.Any())
+    {
+        <div class="alert alert-light text-center py-5 border shadow-sm" style="border-radius: 12px;">
+            Filtreleme kriterlerine uygun problem bulunamadı.
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0 mb-5" style="border-radius: 12px; overflow: hidden; border: 1px solid #e3e6f0 !important;">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th style="width: 40%;">Problem Başlığı</th>
+                            <th style="width: 12%;">Sektör</th>
+                            <th style="width: 12%;">Durum</th>
+                            <th style="width: 12%;">Öncelik</th>
+                            <th style="width: 12%;" class="text-center">Fırsat Skoru</th>
+                            <th style="width: 12%;">Eklenme Tarihi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in FilteredProblems)
+                        {
+                            <tr>
+                                <td>
+                                    <a href="/problems/@p.Id" class="font-weight-bold text-primary text-decoration-none">
+                                        @p.Title
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        @(string.IsNullOrEmpty(p.Sector) ? "-" : p.Sector)
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge @GetStatusBadgeClass(p.Status)">
+                                        @GetStatusText(p.Status)
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-secondary border">
+                                        @GetPriorityText(p.Priority)
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    @if (opportunityScores.TryGetValue(p.Id, out var score) && score > 0)
+                                    {
+                                        <span class="badge bg-danger text-white px-2.5 py-1.5" style="font-size: 0.85rem;">
+                                            @score.ToString("0.0") / 10
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted italic">-</span>
+                                    }
+                                </td>
+                                <td class="font-mono text-muted small">
+                                    @p.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
 
 @code {
     private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>? problems;
+    private Dictionary<Guid, double> opportunityScores = new();
+
+    // Filtre & Arama State
+    private string searchQuery = "";
+    private string selectedSector = "";
+    private string selectedStatus = "";
+    private string selectedPriority = "";
+    private string sortColumn = "Date"; // Date or Score
+    private bool sortAsc = false;
+
+    // Form State
     private string newTitle = "";
     private string newDescription = "";
     private string newSector = "";
@@ -67,7 +202,29 @@ else
 
     private async Task LoadProblems()
     {
-        problems = await GetProblemsHandler.HandleAsync();
+        try
+        {
+            var list = await GetProblemsHandler.HandleAsync();
+            problems = list;
+
+            opportunityScores.Clear();
+            foreach (var p in list)
+            {
+                var opp = await GetOpportunityByProblemHandler.HandleAsync(p.Id);
+                if (opp is not null)
+                {
+                    opportunityScores[p.Id] = opp.TotalScore;
+                }
+                else
+                {
+                    opportunityScores[p.Id] = 0;
+                }
+            }
+        }
+        catch
+        {
+            problems = new List<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>();
+        }
     }
 
     private async Task AddProblem()
@@ -101,9 +258,91 @@ else
         }
     }
 
-    /// <summary>
-    /// Durum bilgisini Türkçe metne dönüştürür.
-    /// </summary>
+    // Client-side Filtreleme & Sıralama
+    private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto> FilteredProblems
+    {
+        get
+        {
+            if (problems is null) return Enumerable.Empty<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>();
+
+            var result = problems;
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                var q = searchQuery.ToLower();
+                result = result.Where(p => p.Title.ToLower().Contains(q) || p.Description.ToLower().Contains(q));
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedSector))
+            {
+                result = result.Where(p => p.Sector == selectedSector);
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedStatus))
+            {
+                result = result.Where(p => p.Status == selectedStatus);
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedPriority))
+            {
+                result = result.Where(p => p.Priority == selectedPriority);
+            }
+
+            if (sortColumn == "Score")
+            {
+                result = sortAsc
+                    ? result.OrderBy(p => opportunityScores.GetValueOrDefault(p.Id, 0.0))
+                    : result.OrderByDescending(p => opportunityScores.GetValueOrDefault(p.Id, 0.0));
+            }
+            else
+            {
+                result = sortAsc
+                    ? result.OrderBy(p => p.CreatedAt)
+                    : result.OrderByDescending(p => p.CreatedAt);
+            }
+
+            return result;
+        }
+    }
+
+    private IEnumerable<string> UniqueSectors
+    {
+        get
+        {
+            if (problems is null) return Enumerable.Empty<string>();
+            return problems
+                .Select(p => p.Sector)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Distinct()!;
+        }
+    }
+
+    private void ToggleDateSort()
+    {
+        if (sortColumn == "Date")
+        {
+            sortAsc = !sortAsc;
+        }
+        else
+        {
+            sortColumn = "Date";
+            sortAsc = false;
+        }
+    }
+
+    private void ToggleScoreSort()
+    {
+        if (sortColumn == "Score")
+        {
+            sortAsc = !sortAsc;
+        }
+        else
+        {
+            sortColumn = "Score";
+            sortAsc = false;
+        }
+    }
+
     private string GetStatusText(string status) => status switch
     {
         "Draft" => "Taslak",
@@ -114,15 +353,21 @@ else
         _ => status
     };
 
-    /// <summary>
-    /// Öncelik seviyesini Türkçe metne dönüştürür.
-    /// </summary>
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "Draft" => "bg-secondary text-white",
+        "Discovered" => "bg-info text-dark",
+        "Analyzed" => "bg-primary text-white",
+        "Validated" => "bg-success text-white",
+        "Archived" => "bg-dark text-white",
+        _ => "bg-secondary"
+    };
+
     private string GetPriorityText(string priority) => priority switch
     {
         "Low" => "Düşük",
         "Medium" => "Orta",
         "High" => "Yüksek",
-        "Critical" => "Kritik",
         _ => priority
     };
 }

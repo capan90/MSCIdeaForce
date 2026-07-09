@@ -1,0 +1,134 @@
+@page "/decisions"
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Application.Decisions.DTOs
+@using MSC.IdeaForge.Domain.Enums
+@inject MSC.IdeaForge.Application.Decisions.Queries.GetAllDecisionsHandler GetAllDecisionsHandler
+@inject NavigationManager NavigationManager
+
+<PageTitle>Karar Günlüğü</PageTitle>
+
+<div class="container mt-4">
+    @* Sayfa Başlığı *@
+    <div class="mb-4">
+        <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Karar Günlüğü (Decision Log)</h1>
+        <p class="text-muted mb-0">Tüm problemlere yönelik alınan stratejik kararları, gerekçeleriyle birlikte buradan takip edin.</p>
+    </div>
+
+    @* Karar Günlük Listesi *@
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0 !important;">
+        <div class="card-header bg-light py-3 border-0">
+            <h5 class="m-0 font-weight-bold text-dark">Alınan Kararlar</h5>
+        </div>
+        <div class="card-body p-0">
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted small">Kararlar yükleniyor...</p>
+                </div>
+            }
+            else if (decisions is null || !decisions.Any())
+            {
+                <div class="alert alert-light text-center py-5 m-3 border" style="border-radius: 8px;">
+                    Henüz kaydedilmiş bir karar bulunmamaktadır. Problem detayı sayfasından karar ekleyebilirsiniz.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                        <thead class="table-light text-muted small text-uppercase">
+                            <tr>
+                                <th style="width: 25%;">İlgili Problem</th>
+                                <th style="width: 15%;">Karar Türü</th>
+                                <th style="width: 45%;">Gerekçe / Detaylar</th>
+                                <th style="width: 15%;">Karar Tarihi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var dec in decisions)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="/problems/@dec.ProblemId" class="font-weight-bold text-primary text-decoration-none">
+                                            @dec.ProblemTitle
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetDecisionBadgeClass(dec.DecisionType) text-white px-2.5 py-1.5" style="font-size: 0.8rem;">
+                                            @GetDecisionTypeText(dec.DecisionType)
+                                        </span>
+                                    </td>
+                                    <td class="text-dark" style="white-space: pre-wrap; line-height: 1.4;">@dec.Reason</td>
+                                    <td class="font-mono text-muted small">
+                                        @dec.DecisionDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<DecisionDto>? decisions;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDecisions();
+    }
+
+    private async Task LoadDecisions()
+    {
+        try
+        {
+            decisions = await GetAllDecisionsHandler.HandleAsync();
+        }
+        catch
+        {
+            decisions = new List<DecisionDto>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetDecisionBadgeClass(string typeStr)
+    {
+        if (Enum.TryParse<DecisionType>(typeStr, out var type))
+        {
+            return type switch
+            {
+                DecisionType.Approved => "bg-success",
+                DecisionType.Rejected => "bg-danger",
+                DecisionType.Parked => "bg-warning text-dark",
+                DecisionType.Continue => "bg-primary",
+                DecisionType.Archive => "bg-secondary",
+                _ => "bg-secondary"
+            };
+        }
+        return "bg-secondary";
+    }
+
+    private string GetDecisionTypeText(string typeStr)
+    {
+        if (Enum.TryParse<DecisionType>(typeStr, out var type))
+        {
+            return type switch
+            {
+                DecisionType.Approved => "Onaylandı",
+                DecisionType.Rejected => "Reddedildi",
+                DecisionType.Parked => "Park Edildi",
+                DecisionType.Continue => "Devam Ediliyor",
+                DecisionType.Archive => "Arşivlendi",
+                _ => type.ToString()
+            };
+        }
+        return typeStr;
+    }
+}

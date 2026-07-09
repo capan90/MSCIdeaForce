@@ -26,7 +26,11 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 @using MSC.IdeaForge.Application.Agents
+@using MSC.IdeaForge.Application.Decisions.DTOs
 @inject MSC.IdeaForge.Application.Agents.AgentCoordinator AgentCoordinator
+@inject MSC.IdeaForge.Application.Problems.Commands.UpdateProblemHandler UpdateProblemHandler
+@inject MSC.IdeaForge.Application.Decisions.Commands.CreateDecisionHandler CreateDecisionHandler
+@inject MSC.IdeaForge.Application.Decisions.Queries.GetDecisionsByProblemHandler GetDecisionsByProblemHandler
 
 <PageTitle>Problem Detayı</PageTitle>
 
@@ -92,143 +96,236 @@
 
         if (activeTab == "detail")
         {
-            @* Problem detay bilgileri *@
             <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; overflow: hidden; background: linear-gradient(to bottom, #ffffff, #fcfcfc);">
-                <div class="card-header bg-primary text-white p-4" style="border-bottom: none;">
-                    <span class="text-uppercase tracking-wider small opacity-75 d-block mb-1">PROBLEM DETAYI</span>
-                    <h2 class="card-title m-0 font-weight-bold" style="letter-spacing: -0.5px;">@problem.Title</h2>
-                </div>
-                <div class="card-body p-4">
-                    @* Açıklama Bölümü *@
-                    <div class="mb-4">
-                        <h5 class="text-primary font-weight-bold mb-2">Açıklama</h5>
-                        <div class="p-3 bg-light rounded" style="white-space: pre-wrap; line-height: 1.6; border-left: 4px solid #0d6efd; color: #495057;">
-                            @problem.Description
+                @if (isEditingProblem)
+                {
+                    <div class="card-header bg-warning text-dark p-4">
+                        <span class="text-uppercase tracking-wider small opacity-75 d-block mb-1">PROBLEMİ DÜZENLE</span>
+                        <input type="text" class="form-control" @bind="editProblemTitle" placeholder="Problem başlığı..." />
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold">Açıklama</label>
+                            <textarea class="form-control" rows="6" @bind="editProblemDescription" placeholder="Problem açıklaması..."></textarea>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <label class="form-label font-weight-bold">Sektör</label>
+                                <input type="text" class="form-control form-control-sm" @bind="editProblemSector" placeholder="Sektör..." />
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label font-weight-bold">Kaynak</label>
+                                <input type="text" class="form-control form-control-sm" @bind="editProblemSource" placeholder="Kaynak..." />
+                            </div>
+                        </div>
+                        <div class="mt-4 text-end d-flex justify-content-end gap-2">
+                            <button class="btn btn-primary btn-sm px-4" @onclick="SaveProblemEdit">Kaydet</button>
+                            <button class="btn btn-secondary btn-sm px-4" @onclick="CancelProblemEdit">İptal</button>
                         </div>
                     </div>
-
-                    @* Detay Parametre Tablosu / Grid *@
-                    <div class="row g-3">
-                        <div class="col-sm-6">
-                            <div class="p-3 bg-light rounded h-100">
-                                <span class="text-muted d-block small">Durum</span>
-                                @* Durum değiştirme açılır kutusu (dropdown) *@
-                                <select class="form-select form-select-sm mt-1" value="@problem.Status" @onchange="OnStatusChanged" style="max-width: 180px;">
-                                    <option value="Draft">Taslak</option>
-                                    <option value="Discovered">Keşfedildi</option>
-                                    <option value="Analyzed">Analiz Edildi</option>
-                                    <option value="Validated">Doğrulandı</option>
-                                    <option value="Archived">Arşivlendi</option>
-                                </select>
+                }
+                else
+                {
+                    <div class="card-header bg-primary text-white p-4" style="border-bottom: none;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-uppercase tracking-wider small opacity-75 d-block mb-1">PROBLEM DETAYI</span>
+                                <h2 class="card-title m-0 font-weight-bold" style="letter-spacing: -0.5px;">@problem.Title</h2>
                             </div>
-                        </div>
-                        <div class="col-sm-6">
-                            <div class="p-3 bg-light rounded h-100">
-                                <span class="text-muted d-block small">Öncelik</span>
-                                <span class="badge bg-info text-dark mt-1 px-2.5 py-1.5" style="font-size: 0.9rem;">@GetPriorityText(problem.Priority)</span>
-                            </div>
-                        </div>
-                        <div class="col-sm-6">
-                            <div class="p-3 bg-light rounded h-100">
-                                <span class="text-muted d-block small">Sektör</span>
-                                <span class="font-weight-bold text-dark mt-1 d-block">@(string.IsNullOrWhiteSpace(problem.Sector) ? "-" : problem.Sector)</span>
-                            </div>
-                        </div>
-                        <div class="col-sm-6">
-                            <div class="p-3 bg-light rounded h-100">
-                                <span class="text-muted d-block small">Kaynak</span>
-                                <span class="font-weight-bold text-dark mt-1 d-block">@(string.IsNullOrWhiteSpace(problem.Source) ? "-" : problem.Source)</span>
-                            </div>
-                        </div>
-                        <div class="col-12">
-                            <div class="p-3 bg-light rounded">
-                                <span class="text-muted d-block small">Eklenme Tarihi</span>
-                                <span class="text-dark mt-1 d-block font-mono">@problem.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</span>
-                            </div>
+                            <button class="btn btn-outline-light btn-sm" @onclick="StartProblemEdit">
+                                <span class="bi bi-pencil-fill"></span> Düzenle
+                            </button>
                         </div>
                     </div>
+                    <div class="card-body p-4">
+                        @* Açıklama Bölümü *@
+                        <div class="mb-4">
+                            <h5 class="text-primary font-weight-bold mb-2">Açıklama</h5>
+                            <div class="p-3 bg-light rounded" style="white-space: pre-wrap; line-height: 1.6; border-left: 4px solid #0d6efd; color: #495057;">
+                                @problem.Description
+                            </div>
+                        </div>
 
-                    @* TAM AI AJAN ANALİZİ PANELİ *@
-                    <div class="mt-4 p-3 border rounded bg-white shadow-sm" style="border-radius: 12px;">
-                        <h6 class="font-weight-bold text-dark mb-2">🤖 Tam AI Ajan Analizi (Coordinator Pattern)</h6>
-                        <p class="text-muted small mb-3">Problemi analiz etmek, araştırmak, fırsat puanı belirlemek, çözüm üretmek ve MVP planı oluşturmak için tüm otonom ajanları sırayla çalıştırın.</p>
-                        
-                        @if (isFullAnalysisRunning)
-                        {
-                            <button class="btn btn-primary btn-sm d-flex align-items-center gap-2 mb-3" disabled>
-                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                Ajanlar sırayla analiz ediyor...
-                            </button>
-                        }
-                        else
-                        {
-                            <button class="btn btn-primary btn-sm d-flex align-items-center gap-2 mb-3" @onclick="StartFullAiAnalysis">
-                                <span class="bi bi-play-circle-fill"></span> Tam AI Analizi Başlat
-                            </button>
-                        }
+                        @* Detay Parametre Tablosu / Grid *@
+                        <div class="row g-3 mb-4">
+                            <div class="col-sm-6">
+                                <div class="p-3 bg-light rounded h-100">
+                                    <span class="text-muted d-block small">Durum</span>
+                                    <select class="form-select form-select-sm mt-1" value="@problem.Status" @onchange="OnStatusChanged" style="max-width: 180px;">
+                                        <option value="Draft">Taslak</option>
+                                        <option value="Discovered">Keşfedildi</option>
+                                        <option value="Analyzed">Analiz Edildi</option>
+                                        <option value="Validated">Doğrulandı</option>
+                                        <option value="Archived">Arşivlendi</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="p-3 bg-light rounded h-100">
+                                    <span class="text-muted d-block small">Öncelik</span>
+                                    <span class="badge bg-info text-dark mt-1 px-2.5 py-1.5" style="font-size: 0.9rem;">@GetPriorityText(problem.Priority)</span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="p-3 bg-light rounded h-100">
+                                    <span class="text-muted d-block small">Sektör</span>
+                                    <span class="font-weight-bold text-dark mt-1 d-block">@(string.IsNullOrWhiteSpace(problem.Sector) ? "-" : problem.Sector)</span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="p-3 bg-light rounded h-100">
+                                    <span class="text-muted d-block small">Kaynak</span>
+                                    <span class="font-weight-bold text-dark mt-1 d-block">@(string.IsNullOrWhiteSpace(problem.Source) ? "-" : problem.Source)</span>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="p-3 bg-light rounded">
+                                    <span class="text-muted d-block small">Eklenme Tarihi</span>
+                                    <span class="text-dark mt-1 d-block font-mono">@problem.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                </div>
+                            </div>
+                        </div>
 
-                        @if (coordinatorProgress is not null && coordinatorProgress.Any())
-                        {
-                            <div class="d-flex flex-column gap-2 mb-2">
-                                @foreach (var progress in coordinatorProgress)
-                                {
-                                    <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light border small" style="font-size: 0.85rem;">
-                                        <div class="d-flex align-items-center gap-2">
-                                            @if (progress.Status == AgentStepStatus.Pending)
-                                            {
-                                                <span class="text-muted">⏳</span>
-                                            }
-                                            else if (progress.Status == AgentStepStatus.Running)
-                                            {
-                                                <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-                                            }
-                                            else if (progress.Status == AgentStepStatus.Completed)
-                                            {
-                                                <span class="text-success">✅</span>
-                                            }
-                                            else if (progress.Status == AgentStepStatus.Failed)
-                                            {
-                                                <span class="text-danger">⚠️</span>
-                                            }
-                                            <span class="@(progress.Status == AgentStepStatus.Running ? "font-weight-bold text-primary" : "")">@progress.Step</span>
-                                        </div>
-                                        <div>
-                                            @if (progress.Status == AgentStepStatus.Running)
-                                            {
-                                                <span class="badge bg-primary text-white">Çalışıyor</span>
-                                            }
-                                            else if (progress.Status == AgentStepStatus.Completed)
-                                            {
-                                                <span class="badge bg-success text-white">Tamamlandı</span>
-                                            }
-                                            else if (progress.Status == AgentStepStatus.Failed)
-                                            {
-                                                <span class="badge bg-danger text-white">Hata</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-secondary text-white">Bekliyor</span>
-                                            }
-                                        </div>
-                                    </div>
-                                    @if (!string.IsNullOrEmpty(progress.ErrorMessage))
+                        @* TAM AI AJAN ANALİZİ PANELİ *@
+                        <div class="mt-4 p-3 border rounded bg-white shadow-sm" style="border-radius: 12px;">
+                            <h6 class="font-weight-bold text-dark mb-2">🤖 Tam AI Ajan Analizi (Coordinator Pattern)</h6>
+                            <p class="text-muted small mb-3">Problemi analiz etmek, araştırmak, fırsat puanı belirlemek, çözüm üretmek ve MVP planı oluşturmak için tüm otonom ajanları sırayla çalıştırın.</p>
+                            
+                            @if (isFullAnalysisRunning)
+                            {
+                                <button class="btn btn-primary btn-sm d-flex align-items-center gap-2 mb-3" disabled>
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    Ajanlar sırayla analiz ediyor...
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-primary btn-sm d-flex align-items-center gap-2 mb-3" @onclick="StartFullAiAnalysis">
+                                    <span class="bi bi-play-circle-fill"></span> Tam AI Analizi Başlat
+                                </button>
+                            }
+
+                            @if (coordinatorProgress is not null && coordinatorProgress.Any())
+                            {
+                                <div class="d-flex flex-column gap-2 mb-2">
+                                    @foreach (var progress in coordinatorProgress)
                                     {
-                                        <div class="text-danger small ps-4 font-mono mb-2" style="font-size: 0.75rem;">
-                                            Hata detayı: @progress.ErrorMessage
+                                        <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light border small" style="font-size: 0.85rem;">
+                                            <div class="d-flex align-items-center gap-2">
+                                                @if (progress.Status == AgentStepStatus.Pending)
+                                                {
+                                                    <span class="text-muted">⏳</span>
+                                                }
+                                                else if (progress.Status == AgentStepStatus.Running)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                                                }
+                                                else if (progress.Status == AgentStepStatus.Completed)
+                                                {
+                                                    <span class="text-success">✅</span>
+                                                }
+                                                else if (progress.Status == AgentStepStatus.Failed)
+                                                {
+                                                    <span class="text-danger">⚠️</span>
+                                                }
+                                                <span class="@(progress.Status == AgentStepStatus.Running ? "font-weight-bold text-primary" : "")">@progress.Step</span>
+                                            </div>
+                                            <div>
+                                                @if (progress.Status == AgentStepStatus.Running)
+                                                {
+                                                    <span class="badge bg-primary text-white">Çalışıyor</span>
+                                                }
+                                                else if (progress.Status == AgentStepStatus.Completed)
+                                                {
+                                                    <span class="badge bg-success text-white">Tamamlandı</span>
+                                                }
+                                                else if (progress.Status == AgentStepStatus.Failed)
+                                                {
+                                                    <span class="badge bg-danger text-white">Hata</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary text-white">Bekliyor</span>
+                                                }
+                                            </div>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(progress.ErrorMessage))
+                                        {
+                                            <div class="text-danger small ps-4 font-mono mb-2" style="font-size: 0.75rem;">
+                                                Hata detayı: @progress.ErrorMessage
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                                
+                                @if (coordinatorProgress.All(p => p.Status == AgentStepStatus.Completed || p.Status == AgentStepStatus.Failed))
+                                {
+                                    <div class="alert alert-info py-2 small mt-2 mb-0">
+                                        <strong>Analiz Tamamlandı!</strong> Tam AI Ajan Analizi sonlandı. Sayfadaki diğer sekmeleri yenileyerek güncel analizleri görebilirsiniz.
+                                    </div>
+                                }
+                            }
+                        </div>
+
+                        @* KARAR GÜNLÜĞÜ PANELİ *@
+                        <div class="mt-4 p-3 border rounded bg-white shadow-sm" style="border-radius: 12px;">
+                            <h6 class="font-weight-bold text-dark mb-2">📋 Problem Karar Günlüğü</h6>
+                            <p class="text-muted small mb-3">Bu problem hakkında alınan kararları ve gerekçelerini yönetin.</p>
+                            
+                            @if (decisions is not null && decisions.Any())
+                            {
+                                <div class="d-flex flex-column gap-2 mb-3">
+                                    @foreach (var dec in decisions)
+                                    {
+                                        <div class="p-2.5 rounded bg-light border small">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="badge @GetDecisionBadgeClass(dec.DecisionType) text-white">@GetDecisionTypeText(dec.DecisionType)</span>
+                                                <span class="text-muted font-mono" style="font-size: 0.75rem;">@dec.DecisionDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                                            </div>
+                                            <div class="text-dark" style="line-height: 1.4;">@dec.Reason</div>
                                         </div>
                                     }
-                                }
-                            </div>
-                            
-                            @if (coordinatorProgress.All(p => p.Status == AgentStepStatus.Completed || p.Status == AgentStepStatus.Failed))
-                            {
-                                <div class="alert alert-info py-2 small mt-2 mb-0">
-                                    <strong>Analiz Tamamlandı!</strong> Tam AI Ajan Analizi sonlandı. Sayfadaki diğer sekmeleri yenileyerek güncel analizleri görebilirsiniz.
                                 </div>
                             }
-                        }
+                            else
+                            {
+                                <div class="text-muted small mb-3 italic">Bu problem için henüz alınmış bir karar kaydedilmemiş.</div>
+                            }
+
+                            @if (isAddingDecision)
+                            {
+                                <div class="p-3 border rounded bg-light mb-3">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-sm-6">
+                                            <label class="form-label small text-muted mb-0 font-weight-bold">Karar Türü</label>
+                                            <select class="form-select form-select-sm" @bind="newDecisionType">
+                                                <option value="@DecisionType.Approved">Onaylandı (Approved)</option>
+                                                <option value="@DecisionType.Rejected">Reddedildi (Rejected)</option>
+                                                <option value="@DecisionType.Parked">Park Edildi (Parked)</option>
+                                                <option value="@DecisionType.Continue">Devam Ediliyor (Continue)</option>
+                                                <option value="@DecisionType.Archive">Arşivlendi (Archive)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small text-muted mb-0 font-weight-bold">Gerekçe / Detaylar</label>
+                                        <textarea class="form-control form-control-sm" rows="3" placeholder="Bu kararın alınmasının arkasındaki gerekçeyi yazın..." @bind="newDecisionReason"></textarea>
+                                    </div>
+                                    <div class="text-end d-flex justify-content-end gap-1.5">
+                                        <button class="btn btn-primary btn-sm py-1 px-3" @onclick="SaveNewDecision" style="font-size: 0.8rem;">Kaydet</button>
+                                        <button class="btn btn-secondary btn-sm py-1 px-3" @onclick="CancelAddingDecision" style="font-size: 0.8rem;">İptal</button>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-dark btn-sm d-flex align-items-center gap-1.5" @onclick="StartAddingDecision">
+                                    <span class="bi bi-plus-circle"></span> Karar Ekle
+                                </button>
+                            }
+                        </div>
                     </div>
-                </div>
+                }
             </div>
         }
         else if (activeTab == "signals")
@@ -1010,6 +1107,19 @@
     private bool isAiOpportunityScoring = false;
     private string activeTab = "detail";
 
+    // Karar Günlüğü State Alanları
+    private IEnumerable<DecisionDto>? decisions;
+    private bool isAddingDecision = false;
+    private DecisionType newDecisionType = DecisionType.Approved;
+    private string newDecisionReason = "";
+
+    // Problem Düzenleme State Alanları
+    private bool isEditingProblem = false;
+    private string editProblemTitle = "";
+    private string editProblemDescription = "";
+    private string? editProblemSector = "";
+    private string? editProblemSource = "";
+
     // Yeni sinyal form alanları
     private string newSignalTitle = "";
     private string newSignalDescription = "";
@@ -1098,6 +1208,7 @@
             await LoadResearch();
             await LoadSolutions();
             await LoadMVPPlan();
+            await LoadDecisions();
         }
         catch
         {
@@ -1895,5 +2006,139 @@
     private double CalculateCurrentTotalScore()
     {
         return (severityScore * 3 + marketSizeScore * 2 + founderFitScore * 2 + riskScore * 1 + feasibilityScore * 2) / 10.0;
+    }
+
+    private void StartProblemEdit()
+    {
+        if (problem is null) return;
+        isEditingProblem = true;
+        editProblemTitle = problem.Title;
+        editProblemDescription = problem.Description;
+        editProblemSector = problem.Sector;
+        editProblemSource = problem.Source;
+    }
+
+    private void CancelProblemEdit()
+    {
+        isEditingProblem = false;
+    }
+
+    private async Task SaveProblemEdit()
+    {
+        if (string.IsNullOrWhiteSpace(editProblemTitle) || string.IsNullOrWhiteSpace(editProblemDescription))
+        {
+            await JsRuntime.InvokeVoidAsync("alert", "Başlık ve Açıklama zorunludur.");
+            return;
+        }
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Problems.Commands.UpdateProblemCommand
+            {
+                ProblemId = Id,
+                Title = editProblemTitle,
+                Description = editProblemDescription,
+                Sector = editProblemSector,
+                Source = editProblemSource
+            };
+
+            await UpdateProblemHandler.HandleAsync(command);
+            isEditingProblem = false;
+            
+            // Problemi yeniden yükle
+            problem = await GetProblemByIdHandler.HandleAsync(Id);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await JsRuntime.InvokeVoidAsync("alert", $"Güncelleme sırasında hata oluştu: {ex.Message}");
+        }
+    }
+
+    private void StartAddingDecision()
+    {
+        isAddingDecision = true;
+        newDecisionType = DecisionType.Approved;
+        newDecisionReason = "";
+    }
+
+    private void CancelAddingDecision()
+    {
+        isAddingDecision = false;
+    }
+
+    private async Task SaveNewDecision()
+    {
+        if (string.IsNullOrWhiteSpace(newDecisionReason))
+        {
+            await JsRuntime.InvokeVoidAsync("alert", "Karar gerekçesi boş olamaz.");
+            return;
+        }
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Decisions.Commands.CreateDecisionCommand
+            {
+                ProblemId = Id,
+                DecisionType = newDecisionType,
+                Reason = newDecisionReason,
+                DecisionDate = DateTime.UtcNow
+            };
+
+            await CreateDecisionHandler.HandleAsync(command);
+            isAddingDecision = false;
+            await LoadDecisions();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await JsRuntime.InvokeVoidAsync("alert", $"Karar kaydedilirken hata oluştu: {ex.Message}");
+        }
+    }
+
+    private string GetDecisionBadgeClass(string typeStr)
+    {
+        if (Enum.TryParse<DecisionType>(typeStr, out var type))
+        {
+            return type switch
+            {
+                DecisionType.Approved => "bg-success",
+                DecisionType.Rejected => "bg-danger",
+                DecisionType.Parked => "bg-warning text-dark",
+                DecisionType.Continue => "bg-primary",
+                DecisionType.Archive => "bg-secondary",
+                _ => "bg-secondary"
+            };
+        }
+        return "bg-secondary";
+    }
+
+    private string GetDecisionTypeText(string typeStr)
+    {
+        if (Enum.TryParse<DecisionType>(typeStr, out var type))
+        {
+            return type switch
+            {
+                DecisionType.Approved => "Onaylandı",
+                DecisionType.Rejected => "Reddedildi",
+                DecisionType.Parked => "Park Edildi",
+                DecisionType.Continue => "Devam Ediliyor",
+                DecisionType.Archive => "Arşivlendi",
+                _ => type.ToString()
+            };
+        }
+        return typeStr;
+    }
+
+    private async Task LoadDecisions()
+    {
+        try
+        {
+            decisions = await GetDecisionsByProblemHandler.HandleAsync(Id);
+        }
+        catch
+        {
+            decisions = new List<DecisionDto>();
+        }
     }
 }

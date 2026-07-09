@@ -28,7 +28,7 @@ public class Problem : BaseEntity
         };
     }
 
-    public void Update(string title, string description, string? sector = null, string? tags = null)
+    public void Update(string title, string description, string? sector = null, string? tags = null, string? source = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
@@ -37,6 +37,7 @@ public class Problem : BaseEntity
         Description = description;
         Sector = sector;
         Tags = tags;
+        Source = source;
         SetUpdated();
     }
 

@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject MSC.IdeaForge.Application.Dashboard.DashboardQueryHandler DashboardQueryHandler
 @inject NavigationManager NavigationManager
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
 
 <PageTitle>Dashboard - MSC IdeaForge</PageTitle>
 
@@ -79,6 +80,89 @@
             </div>
         </div>
 
+        @* Grafikler & Dağılımlar Paneli *@
+        <div class="row g-3 mb-4">
+            @* Sektör Dağılımı Bar Chart *@
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100 p-3" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0;">
+                    <h6 class="font-weight-bold text-dark mb-3"><span class="bi bi-pie-chart-fill text-primary"></span> Sektör Dağılımı</h6>
+                    <div class="d-flex flex-column gap-2.5">
+                        @if (sectorDistribution is null || !sectorDistribution.Any())
+                        {
+                            <span class="text-muted small italic">Veri bulunamadı.</span>
+                        }
+                        else
+                        {
+                            @foreach (var (sector, count) in sectorDistribution)
+                            {
+                                var pct = totalProblems > 0 ? (int)Math.Round((double)count / totalProblems * 100) : 0;
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1 small text-dark">
+                                        <span class="text-truncate" style="max-width: 150px;">@sector</span>
+                                        <strong>@count problem (%@pct)</strong>
+                                    </div>
+                                    <div class="progress" style="height: 8px; border-radius: 4px;">
+                                        <div class="progress-bar bg-primary" role="progressbar" style="width: @pct%;"></div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* Problem Durum Dağılımı Progress Bar *@
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100 p-3" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0;">
+                    <h6 class="font-weight-bold text-dark mb-3"><span class="bi bi-activity text-success"></span> Problem Durum Dağılımı</h6>
+                    <div class="d-flex flex-column gap-2.5">
+                        @foreach (var (status, count) in statusDistribution)
+                        {
+                            var pct = totalProblems > 0 ? (int)Math.Round((double)count / totalProblems * 100) : 0;
+                            <div>
+                                <div class="d-flex justify-content-between mb-1 small text-dark">
+                                    <span>@GetStatusText(status)</span>
+                                    <strong>@count (%@pct)</strong>
+                                </div>
+                                <div class="progress" style="height: 8px; border-radius: 4px;">
+                                    <div class="progress-bar @GetStatusProgressClass(status)" role="progressbar" style="width: @pct%;"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* En Yüksek 5 Fırsat Skoru Bar Chart *@
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100 p-3" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0;">
+                    <h6 class="font-weight-bold text-dark mb-3"><span class="bi bi-bar-chart-fill text-danger"></span> En Yüksek Fırsat Skorları</h6>
+                    <div class="d-flex flex-column gap-2.5">
+                        @if (data.TopOpportunityProblems is null || !data.TopOpportunityProblems.Any())
+                        {
+                            <span class="text-muted small italic">Henüz skorlanmış problem yok.</span>
+                        }
+                        else
+                        {
+                            @foreach (var opp in data.TopOpportunityProblems)
+                            {
+                                var pct = (int)Math.Round(opp.OpportunityScore * 10);
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1 small text-dark">
+                                        <span class="text-truncate" style="max-width: 150px;">@opp.Title</span>
+                                        <strong>@opp.OpportunityScore.ToString("0.0") / 10</strong>
+                                    </div>
+                                    <div class="progress" style="height: 8px; border-radius: 4px;">
+                                        <div class="progress-bar bg-danger" role="progressbar" style="width: @pct%;"></div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
         @* Detay Listeleri ve Tablolar *@
         <div class="row g-4">
             @* Sol Kolon: Fırsatlar ve Son Eklenenler *@
@@ -100,7 +184,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @if (!data.TopOpportunityProblems.Any())
+                                @if (data.TopOpportunityProblems == null || !data.TopOpportunityProblems.Any())
                                 {
                                     <tr>
                                         <td colspan="3" class="text-center text-muted py-4">Henüz puanlanmış bir fırsat bulunmuyor.</td>
@@ -220,12 +304,31 @@
 @code {
     private bool isLoading = true;
     private MSC.IdeaForge.Application.Dashboard.DashboardDto? data;
+    private int totalProblems = 0;
+    private Dictionary<string, int> sectorDistribution = new();
+    private Dictionary<string, int> statusDistribution = new();
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             data = await DashboardQueryHandler.HandleAsync(new MSC.IdeaForge.Application.Dashboard.DashboardQuery());
+            
+            var allProblems = await GetProblemsHandler.HandleAsync();
+            totalProblems = allProblems.Count();
+
+            sectorDistribution = allProblems
+                .GroupBy(p => string.IsNullOrWhiteSpace(p.Sector) ? "Belirtilmemiş" : p.Sector)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            statusDistribution = new Dictionary<string, int>
+            {
+                { "Draft", allProblems.Count(p => p.Status == "Draft") },
+                { "Discovered", allProblems.Count(p => p.Status == "Discovered") },
+                { "Analyzed", allProblems.Count(p => p.Status == "Analyzed") },
+                { "Validated", allProblems.Count(p => p.Status == "Validated") },
+                { "Archived", allProblems.Count(p => p.Status == "Archived") }
+            };
         }
         catch (Exception ex)
         {
@@ -270,6 +373,16 @@
         "Validated" => "bg-success text-white",
         "Archived" => "bg-dark text-white",
         _ => "bg-secondary text-white"
+    };
+
+    private string GetStatusProgressClass(string status) => status switch
+    {
+        "Draft" => "bg-secondary",
+        "Discovered" => "bg-info text-dark",
+        "Analyzed" => "bg-primary",
+        "Validated" => "bg-success",
+        "Archived" => "bg-dark",
+        _ => "bg-secondary"
     };
 
     private string GetPriorityBadgeClass(string priority) => priority switch

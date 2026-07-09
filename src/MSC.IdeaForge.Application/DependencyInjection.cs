@@ -18,6 +18,8 @@ using MSC.IdeaForge.Application.Knowledge.Commands;
 using MSC.IdeaForge.Application.Knowledge.Queries;
 using MSC.IdeaForge.Application.Agents;
 using MSC.IdeaForge.Application.Signals.Services;
+using MSC.IdeaForge.Application.Decisions.Commands;
+using MSC.IdeaForge.Application.Decisions.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -32,6 +34,7 @@ public static class DependencyInjection
         // Silme ve durum güncelleme komut işleyicilerini ekliyoruz
         services.AddScoped<DeleteProblemHandler>();
         services.AddScoped<UpdateProblemStatusHandler>();
+        services.AddScoped<UpdateProblemHandler>();
 
         // Sinyal ekleme ve sorgulama işleyicilerini ekliyoruz
         services.AddScoped<CreateSignalHandler>();
@@ -73,6 +76,7 @@ public static class DependencyInjection
         services.AddScoped<CreateKnowledgeHandler>();
         services.AddScoped<DeleteKnowledgeHandler>();
         services.AddScoped<GetAllKnowledgeHandler>();
+        services.AddScoped<UpdateKnowledgeHandler>();
 
         // AI Ajan Koordinatörü
         services.AddScoped<AgentCoordinator>();
@@ -82,6 +86,11 @@ public static class DependencyInjection
         services.AddScoped<ProcessImportedSignalHandler>();
         services.AddScoped<GetImportedSignalsHandler>();
         services.AddScoped<RSSImporter>();
+
+        // Karar Günlüğü işleyicileri
+        services.AddScoped<CreateDecisionHandler>();
+        services.AddScoped<GetDecisionsByProblemHandler>();
+        services.AddScoped<GetAllDecisionsHandler>();
 
         return services;
     }
