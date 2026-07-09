@@ -58,3 +58,153 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* Theme System & Variables */
+:root {
+    --bg-color: #ffffff;
+    --card-bg: #ffffff;
+    --text-color: #212529;
+    --text-muted-color: #6c757d;
+    --border-color: #dee2e6;
+    --sidebar-bg: #343a40;
+    --sidebar-text: #ffffff;
+    --kpi-bg: linear-gradient(135deg, #f8f9fc, #ffffff);
+}
+
+body.dark-mode {
+    --bg-color: #1a1a2e;
+    --card-bg: #16213e;
+    --text-color: #e0e0e0;
+    --text-muted-color: #a0a0b0;
+    --border-color: #2d3b55;
+    --sidebar-bg: #0f111a;
+    --sidebar-text: #e0e0e0;
+    --kpi-bg: linear-gradient(135deg, #16213e, #1a1a2e);
+}
+
+html, body {
+    background-color: var(--bg-color) !important;
+    color: var(--text-color) !important;
+}
+
+/* Dark Mode Class Overrides */
+body.dark-mode {
+    background-color: var(--bg-color) !important;
+    color: var(--text-color) !important;
+}
+
+body.dark-mode .navbar {
+    background: #0f0f23 !important;
+}
+
+body.dark-mode .card {
+    background-color: var(--card-bg) !important;
+    background: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .card * {
+    /* If card has specific style tags, override text colors */
+    color: var(--text-color);
+}
+
+body.dark-mode .text-dark {
+    color: var(--text-color) !important;
+}
+
+body.dark-mode .text-muted {
+    color: var(--text-muted-color) !important;
+}
+
+body.dark-mode .table {
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .table th, body.dark-mode .table td {
+    background-color: var(--bg-color) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .form-control, body.dark-mode .form-select, body.dark-mode .form-check-input {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode input, body.dark-mode select, body.dark-mode textarea {
+    background-color: #16213e !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+}
+
+body.dark-mode .form-control::placeholder {
+    color: var(--text-muted-color) !important;
+}
+
+body.dark-mode .modal-content {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .list-group-item {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .bg-light {
+    background-color: var(--card-bg) !important;
+}
+
+body.dark-mode .bg-white {
+    background-color: var(--card-bg) !important;
+}
+
+body.dark-mode .nav-tabs .nav-link {
+    color: var(--text-color) !important;
+}
+
+body.dark-mode .nav-tabs .nav-link.active {
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) var(--border-color) var(--card-bg) !important;
+}
+
+body.dark-mode .card.shadow-sm[style*="background"] {
+    background: var(--kpi-bg) !important;
+}
+
+/* Mobile Responsive Rules */
+@media (max-width: 768px) {
+    /* Tablolar yatay kaydırılabilir olsun */
+    .table-responsive, table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Butonlar mobilde tam genişlik olsun (navbar toggler vb. hariç) */
+    .btn:not(.navbar-toggler, .btn-close, .btn-sm) {
+        width: 100% !important;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Form elementleri mobilde tam genişlik olsun */
+    .form-control, .form-select {
+        width: 100% !important;
+    }
+
+    /* Grid sütunlarını mobilde 100% genişlik yap (Dashboard KPI kartları hariç çünkü onlar col-6) */
+    .row > .col:not(.col-6), 
+    .row > [class*="col-"]:not([class*="col-6"]):not([class*="col-md-3"]) {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 100% !important;
+    }
+}

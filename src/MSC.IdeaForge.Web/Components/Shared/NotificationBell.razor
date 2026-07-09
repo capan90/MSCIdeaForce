@@ -1,4 +1,4 @@
-@rendermode InteractiveServer
+
 @using MSC.IdeaForge.Application.Problems.DTOs
 @inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
 @inject MSC.IdeaForge.Application.Opportunities.Queries.GetOpportunityByProblemHandler GetOpportunityByProblemHandler
@@ -50,6 +50,20 @@
 
     private record SimpleItem(Guid Id, string Title);
 
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadNotifications();
+        }
+        catch
+        {
+            unscored.Clear();
+            unvalidated.Clear();
+            unanalyzed.Clear();
+        }
+    }
+
     /// <summary>
     /// Zile tıklandığında açar/kapatır; ilk açılışta bildirimleri hesaplar.
     /// </summary>
@@ -76,27 +90,43 @@
             unvalidated.Clear();
             unanalyzed.Clear();
 
-            foreach (var p in problems)
+            if (problems != null)
             {
-                var opp = await GetOpportunityByProblemHandler.HandleAsync(p.Id);
-                if (opp is null || opp.TotalScore <= 0)
+                foreach (var p in problems)
                 {
-                    unscored.Add(new SimpleItem(p.Id, p.Title));
-                }
+                    try
+                    {
+                        var opp = await GetOpportunityByProblemHandler.HandleAsync(p.Id);
+                        if (opp is null || opp.TotalScore <= 0)
+                        {
+                            unscored.Add(new SimpleItem(p.Id, p.Title));
+                        }
 
-                var validation = await GetValidationByProblemHandler.HandleAsync(p.Id);
-                if (validation is null)
-                {
-                    unvalidated.Add(new SimpleItem(p.Id, p.Title));
-                }
+                        var validation = await GetValidationByProblemHandler.HandleAsync(p.Id);
+                        if (validation is null)
+                        {
+                            unvalidated.Add(new SimpleItem(p.Id, p.Title));
+                        }
 
-                var analysis = await GetProblemAnalysisHandler.HandleAsync(p.Id);
-                if (analysis is null)
-                {
-                    unanalyzed.Add(new SimpleItem(p.Id, p.Title));
+                        var analysis = await GetProblemAnalysisHandler.HandleAsync(p.Id);
+                        if (analysis is null)
+                        {
+                            unanalyzed.Add(new SimpleItem(p.Id, p.Title));
+                        }
+                    }
+                    catch
+                    {
+                        // Hata durumunda bu problemi es geç
+                    }
                 }
             }
             loaded = true;
+        }
+        catch
+        {
+            unscored.Clear();
+            unvalidated.Clear();
+            unanalyzed.Clear();
         }
         finally
         {

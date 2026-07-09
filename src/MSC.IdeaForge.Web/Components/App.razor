@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -15,10 +15,28 @@
 </head>
 
 <body>
+    <script>
+        function applyTheme() {
+            var isDark = localStorage.getItem('isDarkMode') === 'true';
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+        }
+        applyTheme();
+    </script>
+
     <Routes />
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="js/interop.js"></script>
+
+    <script>
+        if (window.Blazor) {
+            Blazor.addEventListener('enhancedload', applyTheme);
+        }
+    </script>
 </body>
 
 </html>

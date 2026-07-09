@@ -58,7 +58,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ActionPlans");
+                    b.ToTable("ActionPlans", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.BusinessCanvas", b =>
@@ -129,7 +129,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("BusinessCanvases");
+                    b.ToTable("BusinessCanvases", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.ChecklistItem", b =>
@@ -184,7 +184,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ChecklistItems");
+                    b.ToTable("ChecklistItems", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.CompetitorAnalysis", b =>
@@ -223,7 +223,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CompetitorAnalyses");
+                    b.ToTable("CompetitorAnalyses", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.Decision", b =>
@@ -265,7 +265,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Decisions");
+                    b.ToTable("Decisions", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.FieldNote", b =>
@@ -321,7 +321,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("FieldNotes");
+                    b.ToTable("FieldNotes", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.FounderProfile", b =>
@@ -382,7 +382,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("FounderProfiles");
+                    b.ToTable("FounderProfiles", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.ImportedSignal", b =>
@@ -437,7 +437,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ImportedSignals");
+                    b.ToTable("ImportedSignals", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.InvestorBrief", b =>
@@ -508,7 +508,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("InvestorBriefs");
+                    b.ToTable("InvestorBriefs", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.KnowledgeEntry", b =>
@@ -560,7 +560,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("KnowledgeEntries");
+                    b.ToTable("KnowledgeEntries", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.MVPPlan", b =>
@@ -610,7 +610,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MVPPlans");
+                    b.ToTable("MVPPlans", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.Opportunity", b =>
@@ -648,7 +648,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Opportunities");
+                    b.ToTable("Opportunities", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.Problem", b =>
@@ -707,7 +707,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Problems");
+                    b.ToTable("Problems", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.ProblemAnalysis", b =>
@@ -765,7 +765,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ProblemAnalyses");
+                    b.ToTable("ProblemAnalyses", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.ProblemNote", b =>
@@ -804,7 +804,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ProblemNotes");
+                    b.ToTable("ProblemNotes", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.Research", b =>
@@ -854,7 +854,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Researches");
+                    b.ToTable("Researches", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.RevenueAnalysis", b =>
@@ -921,7 +921,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("RevenueAnalyses");
+                    b.ToTable("RevenueAnalyses", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.RiskItem", b =>
@@ -983,7 +983,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("RiskItems");
+                    b.ToTable("RiskItems", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.Signal", b =>
@@ -1030,7 +1030,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Signals");
+                    b.ToTable("Signals", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.Solution", b =>
@@ -1087,7 +1087,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Solutions");
+                    b.ToTable("Solutions", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.TrendAnalysis", b =>
@@ -1136,7 +1136,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TrendAnalyses");
+                    b.ToTable("TrendAnalyses", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.Validation", b =>
@@ -1192,7 +1192,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Validations");
+                    b.ToTable("Validations", (string)null);
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.Opportunity", b =>
@@ -1224,7 +1224,7 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
 
                             b1.HasKey("OpportunityId");
 
-                            b1.ToTable("Opportunities");
+                            b1.ToTable("Opportunities", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("OpportunityId");

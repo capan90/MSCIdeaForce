@@ -21,5 +21,6 @@ window.appInterop = {
         } catch {
             return false;
         }
-    }
+    },
+
 };
