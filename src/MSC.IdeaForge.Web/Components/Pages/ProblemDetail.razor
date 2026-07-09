@@ -25,6 +25,8 @@
 @inject MSC.IdeaForge.Application.MVPPlans.Queries.GetMVPPlanByProblemHandler GetMVPPlanByProblemHandler
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
+@using MSC.IdeaForge.Application.Agents
+@inject MSC.IdeaForge.Application.Agents.AgentCoordinator AgentCoordinator
 
 <PageTitle>Problem Detayı</PageTitle>
 
@@ -144,6 +146,87 @@
                                 <span class="text-dark mt-1 d-block font-mono">@problem.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</span>
                             </div>
                         </div>
+                    </div>
+
+                    @* TAM AI AJAN ANALİZİ PANELİ *@
+                    <div class="mt-4 p-3 border rounded bg-white shadow-sm" style="border-radius: 12px;">
+                        <h6 class="font-weight-bold text-dark mb-2">🤖 Tam AI Ajan Analizi (Coordinator Pattern)</h6>
+                        <p class="text-muted small mb-3">Problemi analiz etmek, araştırmak, fırsat puanı belirlemek, çözüm üretmek ve MVP planı oluşturmak için tüm otonom ajanları sırayla çalıştırın.</p>
+                        
+                        @if (isFullAnalysisRunning)
+                        {
+                            <button class="btn btn-primary btn-sm d-flex align-items-center gap-2 mb-3" disabled>
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Ajanlar sırayla analiz ediyor...
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-primary btn-sm d-flex align-items-center gap-2 mb-3" @onclick="StartFullAiAnalysis">
+                                <span class="bi bi-play-circle-fill"></span> Tam AI Analizi Başlat
+                            </button>
+                        }
+
+                        @if (coordinatorProgress is not null && coordinatorProgress.Any())
+                        {
+                            <div class="d-flex flex-column gap-2 mb-2">
+                                @foreach (var progress in coordinatorProgress)
+                                {
+                                    <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light border small" style="font-size: 0.85rem;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            @if (progress.Status == AgentStepStatus.Pending)
+                                            {
+                                                <span class="text-muted">⏳</span>
+                                            }
+                                            else if (progress.Status == AgentStepStatus.Running)
+                                            {
+                                                <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                                            }
+                                            else if (progress.Status == AgentStepStatus.Completed)
+                                            {
+                                                <span class="text-success">✅</span>
+                                            }
+                                            else if (progress.Status == AgentStepStatus.Failed)
+                                            {
+                                                <span class="text-danger">⚠️</span>
+                                            }
+                                            <span class="@(progress.Status == AgentStepStatus.Running ? "font-weight-bold text-primary" : "")">@progress.Step</span>
+                                        </div>
+                                        <div>
+                                            @if (progress.Status == AgentStepStatus.Running)
+                                            {
+                                                <span class="badge bg-primary text-white">Çalışıyor</span>
+                                            }
+                                            else if (progress.Status == AgentStepStatus.Completed)
+                                            {
+                                                <span class="badge bg-success text-white">Tamamlandı</span>
+                                            }
+                                            else if (progress.Status == AgentStepStatus.Failed)
+                                            {
+                                                <span class="badge bg-danger text-white">Hata</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary text-white">Bekliyor</span>
+                                            }
+                                        </div>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(progress.ErrorMessage))
+                                    {
+                                        <div class="text-danger small ps-4 font-mono mb-2" style="font-size: 0.75rem;">
+                                            Hata detayı: @progress.ErrorMessage
+                                        </div>
+                                    }
+                                }
+                            </div>
+                            
+                            @if (coordinatorProgress.All(p => p.Status == AgentStepStatus.Completed || p.Status == AgentStepStatus.Failed))
+                            {
+                                <div class="alert alert-info py-2 small mt-2 mb-0">
+                                    <strong>Analiz Tamamlandı!</strong> Tam AI Ajan Analizi sonlandı. Sayfadaki diğer sekmeleri yenileyerek güncel analizleri görebilirsiniz.
+                                </div>
+                            }
+                        }
                     </div>
                 </div>
             </div>
@@ -998,6 +1081,10 @@
     private string mvpSuccessMessage = "";
     private string mvpErrorMessage = "";
 
+    // Koordinatör state alanları
+    private List<AgentProgress>? coordinatorProgress;
+    private bool isFullAnalysisRunning = false;
+
     protected override async Task OnInitializedAsync()
     {
         // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma, çözümler, MVP planı ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
@@ -1533,6 +1620,43 @@
         catch (Exception ex)
         {
             mvpErrorMessage = $"MVP planı kaydedilirken hata oluştu: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Koordinatör aracılığıyla tüm yapay zeka analiz adımlarını sırayla tetikler.
+    /// </summary>
+    private async Task StartFullAiAnalysis()
+    {
+        isFullAnalysisRunning = true;
+        coordinatorProgress = new List<AgentProgress>();
+        StateHasChanged();
+
+        try
+        {
+            await AgentCoordinator.RunFullAnalysisAsync(Id, progressList =>
+            {
+                coordinatorProgress = progressList.ToList();
+                InvokeAsync(StateHasChanged);
+            });
+
+            // Analiz tamamlanınca tüm sekmelerin verilerini veritabanından yeniden yüklüyoruz.
+            await LoadSignals();
+            await LoadOpportunity();
+            await LoadValidation();
+            await LoadProblemAnalysis();
+            await LoadResearch();
+            await LoadSolutions();
+            await LoadMVPPlan();
+        }
+        catch (Exception ex)
+        {
+            await JsRuntime.InvokeVoidAsync("alert", $"Analiz koordinatörü genel hata: {ex.Message}");
+        }
+        finally
+        {
+            isFullAnalysisRunning = false;
+            StateHasChanged();
         }
     }
 

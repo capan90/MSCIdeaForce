@@ -16,6 +16,7 @@ using MSC.IdeaForge.Application.MVPPlans.Commands;
 using MSC.IdeaForge.Application.MVPPlans.Queries;
 using MSC.IdeaForge.Application.Knowledge.Commands;
 using MSC.IdeaForge.Application.Knowledge.Queries;
+using MSC.IdeaForge.Application.Agents;
 
 namespace MSC.IdeaForge.Application;
 
@@ -71,6 +72,9 @@ public static class DependencyInjection
         services.AddScoped<CreateKnowledgeHandler>();
         services.AddScoped<DeleteKnowledgeHandler>();
         services.AddScoped<GetAllKnowledgeHandler>();
+
+        // AI Ajan Koordinatörü
+        services.AddScoped<AgentCoordinator>();
 
         return services;
     }
