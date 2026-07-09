@@ -15,4 +15,9 @@ public interface IAIProvider
     /// <param name="sector">İlgili sektör</param>
     /// <returns>Analiz sonuçlarını içeren ProblemAnalysisResult nesnesini döner.</returns>
     Task<ProblemAnalysisResult> AnalyzeProblemAsync(string title, string description, string? sector);
+
+    /// <summary>
+    /// Verilen problem detaylarını fırsat skoru kriterlerine göre analiz edip puanlar.
+    /// </summary>
+    Task<OpportunityScoreResult> ScoreOpportunityAsync(string title, string description, string? sector);
 }

@@ -7,6 +7,9 @@
 @inject MSC.IdeaForge.Application.Signals.Queries.GetSignalsByProblemHandler GetSignalsByProblemHandler
 @inject MSC.IdeaForge.Application.Signals.Commands.CreateSignalHandler CreateSignalHandler
 @inject MSC.IdeaForge.Application.Problems.Commands.AnalyzeProblemHandler AnalyzeProblemHandler
+@inject MSC.IdeaForge.Application.Opportunities.Queries.GetOpportunityByProblemHandler GetOpportunityByProblemHandler
+@inject MSC.IdeaForge.Application.Opportunities.Commands.ScoreOpportunityHandler ScoreOpportunityHandler
+@inject MSC.IdeaForge.Application.Opportunities.Commands.AIScoreOpportunityHandler AIScoreOpportunityHandler
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 
@@ -44,13 +47,16 @@
     }
     else
     {
-        @* Sekme yapısı (Problem Detayı vs Sinyaller vs AI Analizi) *@
+        @* Sekme yapısı (Problem Detayı vs Sinyaller vs Fırsat Skoru vs AI Analizi) *@
         <ul class="nav nav-tabs mb-4">
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "detail" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("detail")'>Detay Bilgileri</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "signals" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("signals")'>Kaynak Sinyaller (@(signals?.Count() ?? 0))</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "opportunity" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("opportunity")'>Fırsat Skoru</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "ai_analysis" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("ai_analysis")'>AI Analizi</button>
@@ -205,6 +211,147 @@
                 </div>
             }
         }
+        else if (activeTab == "opportunity")
+        {
+            @* Fırsat Değerlendirme Bölümü *@
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #198754, #20c997); border-bottom: none;">
+                    <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                        <span class="bi bi-star-fill"></span> Fırsat Değerlendirme &amp; Skorlama
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (opportunitySuccessMessage != "")
+                    {
+                        <div class="alert alert-success py-2 mb-3 small">@opportunitySuccessMessage</div>
+                    }
+                    @if (opportunityErrorMessage != "")
+                    {
+                        <div class="alert alert-danger py-2 mb-3 small">@opportunityErrorMessage</div>
+                    }
+
+                    @* AI ile Otomatik Puanlama Butonu *@
+                    <div class="mb-4">
+                        @if (isAiOpportunityScoring)
+                        {
+                            <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-2" disabled>
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Yapay Zeka analiz ediyor...
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-2" @onclick="RunAiOpportunityScoring">
+                                <span class="bi bi-cpu-fill"></span> AI ile Otomatik Puanla
+                            </button>
+                        }
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-md-7">
+                            @* Kriterler Listesi *@
+                            <div class="d-flex flex-column gap-3">
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <label class="form-label font-weight-bold m-0 small">Problem Şiddeti (Ağırlık: x3)</label>
+                                        <span class="badge bg-secondary">@severityScore / 10</span>
+                                    </div>
+                                    <input type="range" class="form-range" min="1" max="10" step="1" @bind="severityScore" />
+                                    @if (!string.IsNullOrEmpty(severityReason))
+                                    {
+                                        <div class="text-muted small mt-1 ps-2" style="border-left: 2px solid #198754; font-size: 0.8rem; font-style: italic;">
+                                            @severityReason
+                                        </div>
+                                    }
+                                </div>
+
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <label class="form-label font-weight-bold m-0 small">Pazar Büyüklüğü (Ağırlık: x2)</label>
+                                        <span class="badge bg-secondary">@marketSizeScore / 10</span>
+                                    </div>
+                                    <input type="range" class="form-range" min="1" max="10" step="1" @bind="marketSizeScore" />
+                                    @if (!string.IsNullOrEmpty(marketSizeReason))
+                                    {
+                                        <div class="text-muted small mt-1 ps-2" style="border-left: 2px solid #198754; font-size: 0.8rem; font-style: italic;">
+                                            @marketSizeReason
+                                        </div>
+                                    }
+                                </div>
+
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <label class="form-label font-weight-bold m-0 small">Kurucu Uyumu (Ağırlık: x2)</label>
+                                        <span class="badge bg-secondary">@founderFitScore / 10</span>
+                                    </div>
+                                    <input type="range" class="form-range" min="1" max="10" step="1" @bind="founderFitScore" />
+                                    @if (!string.IsNullOrEmpty(founderFitReason))
+                                    {
+                                        <div class="text-muted small mt-1 ps-2" style="border-left: 2px solid #198754; font-size: 0.8rem; font-style: italic;">
+                                            @founderFitReason
+                                        </div>
+                                    }
+                                </div>
+
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <label class="form-label font-weight-bold m-0 small">Risk (Ağırlık: x1)</label>
+                                        <span class="badge bg-secondary">@riskScore / 10</span>
+                                    </div>
+                                    <input type="range" class="form-range" min="1" max="10" step="1" @bind="riskScore" />
+                                    @if (!string.IsNullOrEmpty(riskReason))
+                                    {
+                                        <div class="text-muted small mt-1 ps-2" style="border-left: 2px solid #198754; font-size: 0.8rem; font-style: italic;">
+                                            @riskReason
+                                        </div>
+                                    }
+                                </div>
+
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <label class="form-label font-weight-bold m-0 small">Teknik Uygulanabilirlik (Ağırlık: x2)</label>
+                                        <span class="badge bg-secondary">@feasibilityScore / 10</span>
+                                    </div>
+                                    <input type="range" class="form-range" min="1" max="10" step="1" @bind="feasibilityScore" />
+                                    @if (!string.IsNullOrEmpty(feasibilityReason))
+                                    {
+                                        <div class="text-muted small mt-1 ps-2" style="border-left: 2px solid #198754; font-size: 0.8rem; font-style: italic;">
+                                            @feasibilityReason
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-5">
+                            @* Toplam Skor Gösterimi *@
+                            <div class="p-4 bg-light rounded text-center mb-3 h-100 d-flex flex-column justify-content-center align-items-center" style="border: 1px solid #e3e6f0;">
+                                <span class="text-muted small text-uppercase font-weight-bold">Toplam Fırsat Skoru</span>
+                                <div class="display-3 font-weight-bold text-success my-2">@CalculateCurrentTotalScore().ToString("F1")</div>
+                                <span class="text-muted small">Maksimum Skor: 10.0</span>
+                                @if (opportunity is not null)
+                                {
+                                    <span class="badge bg-success mt-2">Durum: @GetOpportunityStatusText(opportunity.Status)</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary mt-2">Durum: Taslak</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1">Değerlendirme Notları</label>
+                            <textarea class="form-control form-control-sm" rows="3" placeholder="Fırsat ile ilgili değerlendirme notlarınız..." @bind="opportunityNotes"></textarea>
+                        </div>
+
+                        <div class="col-12 text-end">
+                            <button class="btn btn-success btn-sm px-4" @onclick="SaveOpportunity">Kaydet</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
         else if (activeTab == "ai_analysis")
         {
             @* AI Analiz Bölümü *@
@@ -302,9 +449,11 @@
 
     private MSC.IdeaForge.Application.Problems.DTOs.ProblemDto? problem;
     private IEnumerable<MSC.IdeaForge.Application.Signals.DTOs.SignalDto>? signals;
+    private MSC.IdeaForge.Application.Opportunities.DTOs.OpportunityDto? opportunity;
     private MSC.IdeaForge.Domain.ValueObjects.ProblemAnalysisResult? analysisResult;
     private bool isLoading = true;
     private bool isAnalyzing = false;
+    private bool isAiOpportunityScoring = false;
     private string activeTab = "detail";
 
     // Yeni sinyal form alanları
@@ -315,13 +464,31 @@
     private string signalErrorMessage = "";
     private string aiErrorMessage = "";
 
+    // Fırsat puanlama form alanları
+    private int severityScore = 5;
+    private int marketSizeScore = 5;
+    private int founderFitScore = 5;
+    private int riskScore = 5;
+    private int feasibilityScore = 5;
+    private string opportunityNotes = "";
+    private string opportunityErrorMessage = "";
+    private string opportunitySuccessMessage = "";
+
+    // Yapay zeka gerekçeleri
+    private string severityReason = "";
+    private string marketSizeReason = "";
+    private string founderFitReason = "";
+    private string riskReason = "";
+    private string feasibilityReason = "";
+
     protected override async Task OnInitializedAsync()
     {
-        // Sayfa yüklendiğinde problemi ve ilişkili sinyalleri getirmek için sorgu işleyicilerini tetikliyoruz.
+        // Sayfa yüklendiğinde problemi, sinyalleri ve fırsat skorlarını getirmek için sorguları tetikliyoruz.
         try
         {
             problem = await GetProblemByIdHandler.HandleAsync(Id);
             await LoadSignals();
+            await LoadOpportunity();
         }
         catch
         {
@@ -336,6 +503,8 @@
     private void SetActiveTab(string tab)
     {
         activeTab = tab;
+        opportunitySuccessMessage = "";
+        opportunityErrorMessage = "";
     }
 
     private async Task LoadSignals()
@@ -348,6 +517,110 @@
         {
             signals = new List<MSC.IdeaForge.Application.Signals.DTOs.SignalDto>();
         }
+    }
+
+    private async Task LoadOpportunity()
+    {
+        try
+        {
+            opportunity = await GetOpportunityByProblemHandler.HandleAsync(Id);
+            if (opportunity is not null)
+            {
+                severityScore = opportunity.ProblemSeverity;
+                marketSizeScore = opportunity.MarketSize;
+                founderFitScore = opportunity.FounderFit;
+                riskScore = opportunity.RiskScore;
+                feasibilityScore = opportunity.TechnicalFeasibility;
+                opportunityNotes = opportunity.Notes ?? "";
+            }
+        }
+        catch
+        {
+            opportunity = null;
+        }
+    }
+
+    /// <summary>
+    /// Yapay Zeka ile otomatik fırsat skorlarını ve gerekçelerini oluşturur.
+    /// </summary>
+    private async Task RunAiOpportunityScoring()
+    {
+        isAiOpportunityScoring = true;
+        opportunityErrorMessage = "";
+        opportunitySuccessMessage = "";
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Opportunities.Commands.AIScoreOpportunityCommand
+            {
+                ProblemId = Id
+            };
+
+            var result = await AIScoreOpportunityHandler.HandleAsync(command);
+
+            // Yapay zekanın önerdiği puanlar form alanlarına atanıyor.
+            severityScore = result.ProblemSeverity;
+            marketSizeScore = result.MarketSize;
+            founderFitScore = result.FounderFit;
+            riskScore = result.RiskScore;
+            feasibilityScore = result.TechnicalFeasibility;
+
+            // Yapay zeka gerekçeleri atanıyor.
+            severityReason = result.ProblemSeverityReason;
+            marketSizeReason = result.MarketSizeReason;
+            founderFitReason = result.FounderFitReason;
+            riskReason = result.RiskScoreReason;
+            feasibilityReason = result.TechnicalFeasibilityReason;
+
+            opportunitySuccessMessage = "Yapay zeka kriterleri analiz etti ve skorları önerdi. Skorları kontrol edip kaydedebilirsiniz.";
+        }
+        catch (Exception ex)
+        {
+            opportunityErrorMessage = $"Yapay zeka otomatik skorlaması sırasında hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isAiOpportunityScoring = false;
+        }
+    }
+
+    /// <summary>
+    /// Fırsat puanlama formunu kaydeder.
+    /// </summary>
+    private async Task SaveOpportunity()
+    {
+        opportunityErrorMessage = "";
+        opportunitySuccessMessage = "";
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Opportunities.Commands.ScoreOpportunityCommand
+            {
+                ProblemId = Id,
+                ProblemSeverity = severityScore,
+                MarketSize = marketSizeScore,
+                FounderFit = founderFitScore,
+                RiskScore = riskScore,
+                TechnicalFeasibility = feasibilityScore,
+                Notes = opportunityNotes
+            };
+
+            await ScoreOpportunityHandler.HandleAsync(command);
+            opportunitySuccessMessage = "Fırsat skoru başarıyla kaydedildi.";
+            await LoadOpportunity();
+        }
+        catch (Exception ex)
+        {
+            opportunityErrorMessage = $"Fırsat skoru kaydedilirken hata oluştu: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Kriter puanlarının ağırlıklı ortalamasını hesaplar.
+    /// </summary>
+    private double CalculateCurrentTotalScore()
+    {
+        return (severityScore * 3 + marketSizeScore * 2 + founderFitScore * 2 + riskScore * 1 + feasibilityScore * 2) / 10.0;
     }
 
     /// <summary>
@@ -518,5 +791,17 @@
         "High" => "bg-danger text-white",
         "Critical" => "bg-dark text-white",
         _ => "bg-secondary text-white"
+    };
+
+    /// <summary>
+    /// Fırsat durumuna uygun Türkçe metin döner.
+    /// </summary>
+    private string GetOpportunityStatusText(string status) => status switch
+    {
+        "Draft" => "Taslak",
+        "Scored" => "Puanlandı",
+        "Approved" => "Onaylandı",
+        "Rejected" => "Reddedildi",
+        _ => status
     };
 }

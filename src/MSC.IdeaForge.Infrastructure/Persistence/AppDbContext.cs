@@ -9,6 +9,7 @@ public class AppDbContext : DbContext
 
     public DbSet<Problem> Problems => Set<Problem>();
     public DbSet<Signal> Signals => Set<Signal>();
+    public DbSet<Opportunity> Opportunities => Set<Opportunity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,6 +29,20 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Description).IsRequired();
             entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<Opportunity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+            entity.OwnsOne(e => e.OpportunityScore, score =>
+            {
+                score.Property(s => s.ProblemSeverity).HasColumnName("ProblemSeverity");
+                score.Property(s => s.MarketSize).HasColumnName("MarketSize");
+                score.Property(s => s.FounderFit).HasColumnName("FounderFit");
+                score.Property(s => s.RiskScore).HasColumnName("RiskScore");
+                score.Property(s => s.TechnicalFeasibility).HasColumnName("TechnicalFeasibility");
+            });
         });
     }
 }
