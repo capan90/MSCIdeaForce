@@ -367,6 +367,52 @@
             </div>
         </div>
 
+        @* Fikir Yaşam Döngüsü Dağılımı + Öne Çıkan Fikirler *@
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px; border: 1px solid #e3e6f0;">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h6 class="m-0 font-weight-bold text-dark"><span class="bi bi-diagram-3-fill text-primary"></span> Fikir Yaşam Döngüsü Dağılımı</h6>
+                    </div>
+                    <div class="card-body p-3 d-flex flex-wrap gap-2 align-content-start">
+                        @foreach (var status in ideaStatusOrder)
+                        {
+                            <span class="badge d-flex align-items-center gap-1 text-white" style="background-color: @GetIdeaStatusColor(status); font-size: 0.78rem;">
+                                @GetIdeaStatusText(status)
+                                <span class="badge bg-white text-dark ms-1">@ideaStatusDistribution.GetValueOrDefault(status)</span>
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px; border: 2px solid #6f42c1;">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h6 class="m-0 font-weight-bold" style="color: #6f42c1;"><span class="bi bi-stars"></span> Öne Çıkan Fikirler (MVP Adayı & Geliştirme)</h6>
+                    </div>
+                    <div class="card-body p-3">
+                        @if (!highlightedIdeas.Any())
+                        {
+                            <div class="text-muted small italic text-center py-3">Şu an MVP Adayı veya Geliştirme aşamasında fikir yok.</div>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column gap-2" style="max-height: 220px; overflow-y: auto;">
+                                @foreach (var idea in highlightedIdeas)
+                                {
+                                    <div class="d-flex justify-content-between align-items-center p-2 rounded bg-light border cursor-pointer" style="cursor: pointer;" @onclick="() => NavigateToProblem(idea.Id)">
+                                        <span class="font-weight-bold text-dark small text-truncate" style="max-width: 70%;">@idea.Title</span>
+                                        <span class="badge text-white" style="background-color: @GetIdeaStatusColor(idea.IdeaStatus); font-size: 0.7rem;">@GetIdeaStatusText(idea.IdeaStatus)</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
         @* Son Aktiviteler *@
         <div class="row g-3 mb-4">
             <div class="col-12">
@@ -416,6 +462,63 @@
 
     // Son Aktiviteler beslemesi
     private List<ActivityItem> recentActivities = new();
+
+    // Fikir yaşam döngüsü (IdeaStatus) dağılımı ve öne çıkan fikirler
+    private Dictionary<string, int> ideaStatusDistribution = new();
+    private List<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto> highlightedIdeas = new();
+
+    // IdeaStatus gösterim sırası
+    private readonly string[] ideaStatusOrder = new[]
+    {
+        "Raw", "Analyzed", "Validated", "MVPCandidate", "Development",
+        "Pilot", "Released", "Parked", "Archived", "Killed"
+    };
+
+    // Fikir durumu → Türkçe etiket
+    private string GetIdeaStatusText(string ideaStatus) => ideaStatus switch
+    {
+        "Raw" => "Ham",
+        "Analyzed" => "Analiz Edildi",
+        "Validated" => "Doğrulandı",
+        "MVPCandidate" => "MVP Adayı",
+        "Development" => "Geliştirme",
+        "Pilot" => "Pilot",
+        "Released" => "Yayınlandı",
+        "Parked" => "Park Edildi",
+        "Archived" => "Arşivlendi",
+        "Killed" => "İptal",
+        _ => ideaStatus
+    };
+
+    // Fikir durumu → renk kodu
+    private string GetIdeaStatusColor(string ideaStatus) => ideaStatus switch
+    {
+        "Raw" => "#6c757d",
+        "Analyzed" => "#0d6efd",
+        "Validated" => "#0dcaf0",
+        "MVPCandidate" => "#6f42c1",
+        "Development" => "#fd7e14",
+        "Pilot" => "#20c997",
+        "Released" => "#198754",
+        "Parked" => "#ffc107",
+        "Archived" => "#343a40",
+        "Killed" => "#dc3545",
+        _ => "#6c757d"
+    };
+
+    /// <summary>
+    /// Mevcut problemlerden IdeaStatus dağılımını ve MVP Adayı / Geliştirme durumundaki öne çıkan fikirleri hesaplar.
+    /// </summary>
+    private void BuildIdeaStatusData(IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto> allProblems)
+    {
+        ideaStatusDistribution = allProblems
+            .GroupBy(p => p.IdeaStatus)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        highlightedIdeas = allProblems
+            .Where(p => p.IdeaStatus == "MVPCandidate" || p.IdeaStatus == "Development")
+            .ToList();
+    }
 
     /// <summary>
     /// Dashboard "Son Aktiviteler" beslemesindeki tek bir aktivite öğesi.
@@ -502,6 +605,7 @@
                 { "Archived", allProblems.Count(p => p.Status == "Archived") }
             };
 
+            BuildIdeaStatusData(allProblems);
             await BuildRecentActivities(allProblems);
         }
         catch (Exception ex)
@@ -558,6 +662,8 @@
                 { "Validated", allProblems.Count(p => p.Status == "Validated") },
                 { "Archived", allProblems.Count(p => p.Status == "Archived") }
             };
+
+            BuildIdeaStatusData(allProblems);
             StateHasChanged();
         }
         catch (Exception ex)

@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
     public DbSet<RevenueAnalysis> RevenueAnalyses => Set<RevenueAnalysis>();
     public DbSet<FounderProfile> FounderProfiles => Set<FounderProfile>();
     public DbSet<CompetitorAnalysis> CompetitorAnalyses => Set<CompetitorAnalysis>();
+    public DbSet<FieldNote> FieldNotes => Set<FieldNote>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -128,6 +129,14 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<CompetitorAnalysis>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<FieldNote>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Content).IsRequired();
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }

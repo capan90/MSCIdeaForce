@@ -11,6 +11,7 @@ using MSC.IdeaForge.Application.MVPPlans.Commands;
 using MSC.IdeaForge.Application.Revenues.Commands;
 using MSC.IdeaForge.Application.Validations.Commands;
 using MSC.IdeaForge.Application.CompetitorAnalyses.Commands;
+using MSC.IdeaForge.Domain.Enums;
 using MSC.IdeaForge.Domain.Interfaces;
 
 namespace MSC.IdeaForge.Application.Agents;
@@ -30,6 +31,8 @@ public class AgentCoordinator
     private readonly AnalyzeRevenueHandler _analyzeRevenueHandler;
     private readonly GenerateValidationQuestionsHandler _generateValidationQuestionsHandler;
     private readonly AnalyzeCompetitorsHandler _analyzeCompetitorsHandler;
+    private readonly UpdateProblemStatusHandler _updateProblemStatusHandler;
+    private readonly UpdateIdeaStatusHandler _updateIdeaStatusHandler;
 
     public AgentCoordinator(
         AnalyzeProblemHandler analyzeProblemHandler,
@@ -41,7 +44,9 @@ public class AgentCoordinator
         GenerateMVPPlanHandler generateMVPPlanHandler,
         AnalyzeRevenueHandler analyzeRevenueHandler,
         GenerateValidationQuestionsHandler generateValidationQuestionsHandler,
-        AnalyzeCompetitorsHandler analyzeCompetitorsHandler)
+        AnalyzeCompetitorsHandler analyzeCompetitorsHandler,
+        UpdateProblemStatusHandler updateProblemStatusHandler,
+        UpdateIdeaStatusHandler updateIdeaStatusHandler)
     {
         _analyzeProblemHandler = analyzeProblemHandler;
         _aiResearchHandler = aiResearchHandler;
@@ -53,6 +58,8 @@ public class AgentCoordinator
         _analyzeRevenueHandler = analyzeRevenueHandler;
         _generateValidationQuestionsHandler = generateValidationQuestionsHandler;
         _analyzeCompetitorsHandler = analyzeCompetitorsHandler;
+        _updateProblemStatusHandler = updateProblemStatusHandler;
+        _updateIdeaStatusHandler = updateIdeaStatusHandler;
     }
 
     /// <summary>
@@ -89,6 +96,14 @@ public class AgentCoordinator
         try
         {
             await _analyzeProblemHandler.HandleAsync(problemId, cancellationToken);
+
+            // Problem analizi tamamlandığında problem durumunu Analyzed'e çekiyoruz
+            try
+            {
+                await _updateProblemStatusHandler.HandleAsync(problemId, ProblemStatus.Analyzed, cancellationToken);
+            }
+            catch { /* durum güncelleme kritik değil; analiz akışını kesmiyoruz */ }
+
             ReportProgress(0, AgentStepStatus.Completed);
         }
         catch (Exception ex)
@@ -213,6 +228,17 @@ public class AgentCoordinator
         {
             ReportProgress(7, AgentStepStatus.Failed, ex.Message);
         }
+
+        // Tüm adımlar tamamlandığında fikir yaşam döngüsü durumunu Analyzed'e çekiyoruz
+        try
+        {
+            await _updateIdeaStatusHandler.HandleAsync(new UpdateIdeaStatusCommand
+            {
+                ProblemId = problemId,
+                IdeaStatus = IdeaStatus.Analyzed
+            }, cancellationToken);
+        }
+        catch { /* fikir durumu güncelleme kritik değil */ }
 
         return steps;
     }

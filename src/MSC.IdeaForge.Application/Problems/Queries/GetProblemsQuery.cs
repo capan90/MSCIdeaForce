@@ -25,7 +25,9 @@ public class GetProblemsHandler
             Sector = p.Sector,
             Tags = p.Tags,
             Source = p.Source,
-            CreatedAt = p.CreatedAt
+            CreatedAt = p.CreatedAt,
+            IdeaStatus = (p.IdeaStatus ?? Domain.Enums.IdeaStatus.Raw).ToString(),
+            IdeaStatusHistory = p.IdeaStatusHistory
         });
     }
 }

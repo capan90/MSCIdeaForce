@@ -28,6 +28,8 @@ using MSC.IdeaForge.Application.FounderProfiles.Commands;
 using MSC.IdeaForge.Application.FounderProfiles.Queries;
 using MSC.IdeaForge.Application.CompetitorAnalyses.Commands;
 using MSC.IdeaForge.Application.CompetitorAnalyses.Queries;
+using MSC.IdeaForge.Application.FieldNotes.Commands;
+using MSC.IdeaForge.Application.FieldNotes.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -44,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<UpdateProblemStatusHandler>();
         services.AddScoped<UpdateProblemHandler>();
         services.AddScoped<UpdateProblemPriorityHandler>();
+        services.AddScoped<UpdateIdeaStatusHandler>();
 
         // Sinyal ekleme ve sorgulama işleyicilerini ekliyoruz
         services.AddScoped<CreateSignalHandler>();
@@ -118,6 +121,10 @@ public static class DependencyInjection
         // Rakip Analizi işleyicileri
         services.AddScoped<AnalyzeCompetitorsHandler>();
         services.AddScoped<GetCompetitorAnalysisHandler>();
+
+        // Saha İstihbaratı (Field Notes) işleyicileri
+        services.AddScoped<CreateFieldNoteHandler>();
+        services.AddScoped<GetFieldNotesHandler>();
 
         return services;
     }

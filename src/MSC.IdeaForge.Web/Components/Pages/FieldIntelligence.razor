@@ -1,0 +1,285 @@
+@page "/field-intelligence"
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Domain.Enums
+@using MSC.IdeaForge.Application.FieldNotes.DTOs
+@inject MSC.IdeaForge.Application.FieldNotes.Queries.GetFieldNotesHandler GetFieldNotesHandler
+@inject MSC.IdeaForge.Application.FieldNotes.Commands.CreateFieldNoteHandler CreateFieldNoteHandler
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+
+<PageTitle>Saha İstihbaratı</PageTitle>
+
+<div class="container mt-4" style="max-width: 900px;">
+    @* Sayfa Başlığı *@
+    <div class="mb-4">
+        <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Saha İstihbaratı (Field Intelligence)</h1>
+        <p class="text-muted mb-0">Saha gözlemlerini ve gerçek hayat notlarını zaman çizelgesi üzerinde toplayın.</p>
+    </div>
+
+    @* Yeni Not Ekleme Formu *@
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0 !important;">
+        <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #0f766e, #14b8a6); border-bottom: none;">
+            <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                <span class="bi bi-geo-alt-fill"></span> Yeni Saha Notu
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success py-2 mb-3 small">@successMessage</div>
+            }
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger py-2 mb-3 small">@errorMessage</div>
+            }
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Başlık</label>
+                    <input class="form-control form-control-sm" placeholder="Not başlığı..." @bind="newTitle" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Konum</label>
+                    <input class="form-control form-control-sm" placeholder="Örn: Konya OSB" @bind="newLocation" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Gözlem Tarihi</label>
+                    <input type="date" class="form-control form-control-sm" @bind="newObservationDate" />
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Kaynak</label>
+                    <select class="form-select form-select-sm" @bind="newSource">
+                        @foreach (var s in Enum.GetValues<FieldNoteSource>())
+                        {
+                            <option value="@s">@GetSourceText(s)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">İlgili Problem (opsiyonel)</label>
+                    <select class="form-select form-select-sm" @bind="newProblemId">
+                        <option value="">-- Bağlama yok --</option>
+                        @if (problems is not null)
+                        {
+                            @foreach (var p in problems)
+                            {
+                                <option value="@p.Id">@p.Title</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Etiketler</label>
+                    <input class="form-control form-control-sm" placeholder="virgülle ayırın" @bind="newTags" />
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">İçerik / Gözlem</label>
+                    <textarea class="form-control form-control-sm" rows="3" placeholder="Sahada gözlemlediklerinizi yazın..." @bind="newContent"></textarea>
+                </div>
+
+                <div class="col-12 d-flex justify-content-between align-items-center">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="hasPhotoCheck" @bind="newHasPhoto" />
+                        <label class="form-check-label small text-muted" for="hasPhotoCheck">Fotoğraf mevcut</label>
+                    </div>
+                    <button class="btn btn-sm text-white px-4" style="background-color: #0f766e;" @onclick="AddNote" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        }
+                        else
+                        {
+                            <span>Not Ekle</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Kaynak Filtresi *@
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <span class="text-muted small font-weight-bold">Kaynak Filtresi:</span>
+        <select class="form-select form-select-sm" style="width: auto;" @bind="sourceFilter">
+            <option value="">Tümü</option>
+            @foreach (var s in Enum.GetValues<FieldNoteSource>())
+            {
+                <option value="@s">@GetSourceText(s)</option>
+            }
+        </select>
+    </div>
+
+    @* Zaman Çizelgesi Görünümü *@
+    @if (notes is null)
+    {
+        <div class="text-center py-4">
+            <div class="spinner-border text-secondary" role="status"></div>
+        </div>
+    }
+    else if (!FilteredNotes.Any())
+    {
+        <div class="alert alert-light text-center py-4 border shadow-sm" style="border-radius: 8px;">
+            Henüz saha notu yok veya seçili filtreye uygun not bulunmuyor.
+        </div>
+    }
+    else
+    {
+        <div class="position-relative ps-4" style="border-left: 2px solid #e3e6f0;">
+            @foreach (var note in FilteredNotes)
+            {
+                <div class="mb-4 position-relative">
+                    @* Zaman çizelgesi noktası *@
+                    <span class="position-absolute" style="left: -1.65rem; top: 0.25rem; width: 0.75rem; height: 0.75rem; border-radius: 50%; background-color: #14b8a6;"></span>
+
+                    <div class="card shadow-sm border-0" style="border-radius: 10px; border: 1px solid #e3e6f0;">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1">
+                                <h6 class="font-weight-bold text-dark m-0">@note.Title</h6>
+                                <span class="badge" style="background-color: #0f766e; color:#fff;">@GetSourceText(ParseSource(note.Source))</span>
+                            </div>
+                            <div class="text-muted small mb-2">
+                                <span class="bi bi-calendar3"></span> @note.ObservationDate.ToLocalTime().ToString("yyyy-MM-dd")
+                                @if (!string.IsNullOrWhiteSpace(note.Location))
+                                {
+                                    <span class="ms-2"><span class="bi bi-geo-alt"></span> @note.Location</span>
+                                }
+                                @if (note.HasPhoto)
+                                {
+                                    <span class="ms-2"><span class="bi bi-camera-fill"></span> Fotoğraflı</span>
+                                }
+                            </div>
+                            <p class="text-dark small mb-2" style="white-space: pre-line;">@note.Content</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                @if (!string.IsNullOrWhiteSpace(note.Tags))
+                                {
+                                    <span class="text-muted small"><span class="bi bi-tags"></span> @note.Tags</span>
+                                }
+                                else
+                                {
+                                    <span></span>
+                                }
+                                @if (note.ProblemId is not null)
+                                {
+                                    <a href="/problems/@note.ProblemId" class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size: 0.75rem;">
+                                        İlgili Problem →
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<FieldNoteDto>? notes;
+    private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>? problems;
+
+    // Form alanları
+    private string newTitle = "";
+    private string newLocation = "";
+    private DateTime newObservationDate = DateTime.Today;
+    private string newContent = "";
+    private FieldNoteSource newSource = FieldNoteSource.FabrikaZiyareti;
+    private string newTags = "";
+    private Guid? newProblemId;
+    private bool newHasPhoto = false;
+
+    private bool isSaving = false;
+    private string successMessage = "";
+    private string errorMessage = "";
+
+    // Kaynak filtresi ("" = tümü)
+    private string sourceFilter = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        problems = await GetProblemsHandler.HandleAsync();
+        await LoadNotes();
+    }
+
+    private async Task LoadNotes()
+    {
+        notes = await GetFieldNotesHandler.HandleAsync();
+    }
+
+    /// <summary>
+    /// Kaynak filtresine göre, tarih sırasıyla (yeniden eskiye) notlar.
+    /// </summary>
+    private List<FieldNoteDto> FilteredNotes
+    {
+        get
+        {
+            if (notes is null) return new();
+            var query = string.IsNullOrEmpty(sourceFilter) ? notes : notes.Where(n => n.Source == sourceFilter);
+            return query.OrderByDescending(n => n.ObservationDate).ToList();
+        }
+    }
+
+    /// <summary>
+    /// Yeni saha notunu kaydeder.
+    /// </summary>
+    private async Task AddNote()
+    {
+        successMessage = "";
+        errorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(newTitle) || string.IsNullOrWhiteSpace(newContent))
+        {
+            errorMessage = "Başlık ve içerik zorunludur.";
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            await CreateFieldNoteHandler.HandleAsync(new MSC.IdeaForge.Application.FieldNotes.Commands.CreateFieldNoteCommand
+            {
+                Title = newTitle,
+                Location = string.IsNullOrWhiteSpace(newLocation) ? null : newLocation,
+                ObservationDate = DateTime.SpecifyKind(newObservationDate, DateTimeKind.Utc),
+                Content = newContent,
+                Source = newSource,
+                Tags = string.IsNullOrWhiteSpace(newTags) ? null : newTags,
+                ProblemId = newProblemId,
+                HasPhoto = newHasPhoto
+            });
+
+            // Formu temizle
+            newTitle = "";
+            newLocation = "";
+            newContent = "";
+            newTags = "";
+            newProblemId = null;
+            newHasPhoto = false;
+            newObservationDate = DateTime.Today;
+            successMessage = "Saha notu eklendi ✓";
+            await LoadNotes();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Kaydetme sırasında bir hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private FieldNoteSource ParseSource(string s) => Enum.TryParse<FieldNoteSource>(s, out var v) ? v : FieldNoteSource.Diger;
+
+    // Kaynak → Türkçe etiket
+    private string GetSourceText(FieldNoteSource source) => source switch
+    {
+        FieldNoteSource.FabrikaZiyareti => "Fabrika Ziyareti",
+        FieldNoteSource.TarlaGozlemi => "Tarla Gözlemi",
+        FieldNoteSource.BelediyeGorusmesi => "Belediye Görüşmesi",
+        FieldNoteSource.MusteriGorusmesi => "Müşteri Görüşmesi",
+        FieldNoteSource.AkademikCalisma => "Akademik Çalışma",
+        FieldNoteSource.Diger => "Diğer",
+        _ => source.ToString()
+    };
+}

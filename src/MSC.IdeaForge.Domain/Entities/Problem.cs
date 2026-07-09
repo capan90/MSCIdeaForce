@@ -12,6 +12,12 @@ public class Problem : BaseEntity
     public string? Tags { get; private set; }
     public string? Source { get; private set; }
 
+    // Fikrin yaşam döngüsü durumu (varsayılan Raw)
+    public IdeaStatus? IdeaStatus { get; private set; } = Enums.IdeaStatus.Raw;
+
+    // Durum geçmişinin JSON serileştirilmiş hali ({Status, ChangedAt} listesi)
+    public string? IdeaStatusHistory { get; private set; }
+
     private Problem() { }
 
     public static Problem Create(string title, string description, string? sector = null, string? source = null)
@@ -50,6 +56,16 @@ public class Problem : BaseEntity
     public void SetPriority(PriorityLevel priority)
     {
         Priority = priority;
+        SetUpdated();
+    }
+
+    /// <summary>
+    /// Fikrin yaşam döngüsü durumunu değiştirir. Güncel durum geçmişi (JSON) çağıran katman tarafından hesaplanıp verilir.
+    /// </summary>
+    public void ChangeIdeaStatus(IdeaStatus newStatus, string? historyJson)
+    {
+        IdeaStatus = newStatus;
+        IdeaStatusHistory = historyJson;
         SetUpdated();
     }
 

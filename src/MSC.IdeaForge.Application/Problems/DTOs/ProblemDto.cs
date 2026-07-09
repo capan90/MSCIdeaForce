@@ -11,4 +11,17 @@ public class ProblemDto
     public string? Tags { get; set; }
     public string? Source { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    // Fikrin yaşam döngüsü durumu (varsayılan Raw) ve durum geçmişi (JSON)
+    public string IdeaStatus { get; set; } = "Raw";
+    public string? IdeaStatusHistory { get; set; }
+}
+
+/// <summary>
+/// Fikir durumu geçmişindeki tek bir kayıt (hangi duruma ne zaman geçildi).
+/// </summary>
+public class IdeaStatusHistoryEntry
+{
+    public string Status { get; set; } = string.Empty;
+    public DateTime ChangedAt { get; set; }
 }

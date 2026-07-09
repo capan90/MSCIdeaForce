@@ -163,13 +163,14 @@
                             <th style="width: 5%;" class="text-center">
                                 <input type="checkbox" @onchange="ToggleSelectAll" checked="@IsAllSelected" />
                             </th>
-                            <th style="width: 28%;">Problem Başlığı</th>
-                            <th style="width: 11%;">Sektör</th>
-                            <th style="width: 11%;">Durum</th>
-                            <th style="width: 11%;">Öncelik</th>
-                            <th style="width: 11%;" class="text-center">Fırsat Skoru</th>
-                            <th style="width: 10%;">Eklenme Tarihi</th>
-                            <th style="width: 13%;" class="text-center">Hızlı Analiz</th>
+                            <th style="width: 22%;">Problem Başlığı</th>
+                            <th style="width: 9%;">Sektör</th>
+                            <th style="width: 10%;">Durum</th>
+                            <th style="width: 11%;">Fikir Durumu</th>
+                            <th style="width: 9%;">Öncelik</th>
+                            <th style="width: 10%;" class="text-center">Fırsat Skoru</th>
+                            <th style="width: 9%;">Eklenme Tarihi</th>
+                            <th style="width: 11%;" class="text-center">Hızlı Analiz</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -192,6 +193,12 @@
                                 <td>
                                     <span class="badge @GetStatusBadgeClass(p.Status)">
                                         @GetStatusText(p.Status)
+                                    </span>
+                                </td>
+                                <td>
+                                    @* Fikir yaşam döngüsü durumu (IdeaStatus) *@
+                                    <span class="badge text-white" style="background-color: @GetIdeaStatusColor(p.IdeaStatus); font-size: 0.7rem;">
+                                        @GetIdeaStatusText(p.IdeaStatus)
                                     </span>
                                 </td>
                                 <td>
@@ -236,7 +243,7 @@
                             @if (quickAnalyzingProblemId == p.Id && quickAnalysisProgress is not null)
                             {
                                 <tr>
-                                    <td colspan="8" class="bg-light">
+                                    <td colspan="9" class="bg-light">
                                         <div class="d-flex flex-wrap gap-2 py-2 px-1">
                                             @foreach (var step in quickAnalysisProgress)
                                             {
@@ -538,6 +545,38 @@
         >= 8 => "bg-success",
         >= 6 => "bg-warning",
         _ => "bg-danger"
+    };
+
+    // Fikir yaşam döngüsü durumu → Türkçe etiket
+    private string GetIdeaStatusText(string ideaStatus) => ideaStatus switch
+    {
+        "Raw" => "Ham",
+        "Analyzed" => "Analiz Edildi",
+        "Validated" => "Doğrulandı",
+        "MVPCandidate" => "MVP Adayı",
+        "Development" => "Geliştirme",
+        "Pilot" => "Pilot",
+        "Released" => "Yayınlandı",
+        "Parked" => "Park Edildi",
+        "Archived" => "Arşivlendi",
+        "Killed" => "İptal",
+        _ => ideaStatus
+    };
+
+    // Fikir yaşam döngüsü durumu → renk kodu
+    private string GetIdeaStatusColor(string ideaStatus) => ideaStatus switch
+    {
+        "Raw" => "#6c757d",
+        "Analyzed" => "#0d6efd",
+        "Validated" => "#0dcaf0",
+        "MVPCandidate" => "#6f42c1",
+        "Development" => "#fd7e14",
+        "Pilot" => "#20c997",
+        "Released" => "#198754",
+        "Parked" => "#ffc107",
+        "Archived" => "#343a40",
+        "Killed" => "#dc3545",
+        _ => "#6c757d"
     };
 
     /// <summary>
