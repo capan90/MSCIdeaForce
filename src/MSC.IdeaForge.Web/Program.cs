@@ -3,6 +3,9 @@ using MSC.IdeaForge.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Yerel yapılandırma dosyasını (varsa) konfigürasyon pipeline'ına ekliyoruz
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 

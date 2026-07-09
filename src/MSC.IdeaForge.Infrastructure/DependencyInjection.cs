@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MSC.IdeaForge.Domain.Interfaces;
+using MSC.IdeaForge.Infrastructure.AI;
 using MSC.IdeaForge.Infrastructure.Persistence;
 using MSC.IdeaForge.Infrastructure.Persistence.Repositories;
 
@@ -15,6 +16,11 @@ public static class DependencyInjection
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<IProblemRepository, ProblemRepository>();
+        services.AddScoped<ISignalRepository, SignalRepository>();
+
+        // HttpClient ve GeminiAIProvider bağımlılıklarını ekliyoruz
+        services.AddScoped<HttpClient>();
+        services.AddScoped<IAIProvider, GeminiAIProvider>();
 
         return services;
     }

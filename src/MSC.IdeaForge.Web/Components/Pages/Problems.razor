@@ -43,8 +43,8 @@ else
                 <tr>
                     @* Başlık hücresini detay sayfasına yönlendiren bir linke dönüştürüyoruz *@
                     <td><a href="/problems/@p.Id">@p.Title</a></td>
-                    <td>@p.Status</td>
-                    <td>@p.Priority</td>
+                    <td>@GetStatusText(p.Status)</td>
+                    <td>@GetPriorityText(p.Priority)</td>
                     <td>@p.Sector</td>
                     <td>@p.CreatedAt.ToString("yyyy-MM-dd")</td>
                 </tr>
@@ -100,4 +100,29 @@ else
             errorMessage = $"Hata: {ex.Message}";
         }
     }
+
+    /// <summary>
+    /// Durum bilgisini Türkçe metne dönüştürür.
+    /// </summary>
+    private string GetStatusText(string status) => status switch
+    {
+        "Draft" => "Taslak",
+        "Discovered" => "Keşfedildi",
+        "Analyzed" => "Analiz Edildi",
+        "Validated" => "Doğrulandı",
+        "Archived" => "Arşivlendi",
+        _ => status
+    };
+
+    /// <summary>
+    /// Öncelik seviyesini Türkçe metne dönüştürür.
+    /// </summary>
+    private string GetPriorityText(string priority) => priority switch
+    {
+        "Low" => "Düşük",
+        "Medium" => "Orta",
+        "High" => "Yüksek",
+        "Critical" => "Kritik",
+        _ => priority
+    };
 }

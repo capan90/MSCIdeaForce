@@ -51,4 +51,12 @@ public class Problem : BaseEntity
         Priority = priority;
         SetUpdated();
     }
+
+    /// <summary>
+    /// Problemi silinmiş olarak işaretler (soft delete).
+    /// </summary>
+    public void Delete()
+    {
+        MarkAsDeleted();
+    }
 }
