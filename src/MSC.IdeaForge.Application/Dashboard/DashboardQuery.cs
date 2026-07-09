@@ -57,6 +57,13 @@ public class DashboardQueryHandler
             ? Math.Round(opportunities.Average(o => o.OpportunityScore.TotalScore), 1)
             : 0.0;
 
+        // Henüz puanlanmamış problem sayısı (fırsat skoru olmayan veya 0 olanlar)
+        var scoredProblemIds = opportunities
+            .Where(o => o.OpportunityScore.TotalScore > 0)
+            .Select(o => o.ProblemId)
+            .ToHashSet();
+        var unscoredProblemsCount = problems.Count(p => !scoredProblemIds.Contains(p.Id));
+
         // En yüksek fırsat skoruna sahip ilk 5 problem
         var topOpportunityProblems = opportunities
             .OrderByDescending(o => o.OpportunityScore.TotalScore)
@@ -113,6 +120,7 @@ public class DashboardQueryHandler
             TotalSignalsCount = totalSignalsCount,
             TotalAiAnalysisCount = totalAiAnalysisCount,
             AverageOpportunityScore = averageOpportunityScore,
+            UnscoredProblemsCount = unscoredProblemsCount,
             TopOpportunityProblems = topOpportunityProblems,
             RecentProblems = recentProblems,
             ValidationPendingProblems = validationPendingProblems

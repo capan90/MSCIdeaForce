@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<InvestorBrief> InvestorBriefs => Set<InvestorBrief>();
     public DbSet<ProblemNote> ProblemNotes => Set<ProblemNote>();
     public DbSet<BusinessCanvas> BusinessCanvases => Set<BusinessCanvas>();
+    public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -160,6 +161,13 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<BusinessCanvas>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<ChecklistItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }

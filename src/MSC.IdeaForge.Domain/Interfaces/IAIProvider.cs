@@ -87,4 +87,19 @@ public interface IAIProvider
     /// Verilen problem için Business Model Canvas 9 bloğunu üretir.
     /// </summary>
     Task<BusinessCanvasResult> GenerateBusinessCanvasAsync(string title, string description, string? sector, string? solutionType);
+
+    /// <summary>
+    /// Verilen girişim için kapsamlı bir başlangıç kontrol listesi üretir.
+    /// </summary>
+    Task<List<ChecklistItemSuggestion>> GenerateStartupChecklistAsync(string title, string description, string? sector);
+
+    /// <summary>
+    /// Verilen proje için gerekli ekip rollerini analiz eder.
+    /// </summary>
+    Task<List<TeamRole>> AnalyzeTeamNeedsAsync(string title, string description, string? sector, string? solutionType);
+
+    /// <summary>
+    /// Verilen problemle bağlantılı olabilecek diğer problemleri, mevcut problem başlıkları arasından bulur.
+    /// </summary>
+    Task<List<RelatedProblem>> FindRelatedProblemsAsync(string title, string description, List<string> allProblemTitles);
 }

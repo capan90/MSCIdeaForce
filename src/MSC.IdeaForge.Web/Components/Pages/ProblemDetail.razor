@@ -41,6 +41,8 @@
 @inject MSC.IdeaForge.Application.ProblemNotes.Commands.CreateProblemNoteHandler CreateProblemNoteHandler
 @inject MSC.IdeaForge.Application.ProblemNotes.Commands.DeleteProblemNoteHandler DeleteProblemNoteHandler
 @inject MSC.IdeaForge.Application.ProblemNotes.Queries.GetProblemNotesHandler GetProblemNotesHandler
+@inject MSC.IdeaForge.Domain.Interfaces.IAIProvider AIProvider
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
 
 <PageTitle>Problem Detayı</PageTitle>
 
@@ -406,6 +408,61 @@
                                         </div>
                                     }
                                 </div>
+                            }
+                        </div>
+
+                        @* BAĞLANTILI PROBLEMLER PANELİ *@
+                        <div class="mt-4 p-3 border rounded bg-white shadow-sm" style="border-radius: 12px;">
+                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                                <h6 class="font-weight-bold text-dark m-0">🔗 Bağlantılı Problemler</h6>
+                                @if (isFindingRelated)
+                                {
+                                    <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2" disabled>
+                                        <span class="spinner-border spinner-border-sm" role="status"></span> Aranıyor...
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-outline-primary btn-sm" @onclick="FindRelatedProblems">
+                                        <span class="bi bi-search"></span> Benzer Problemler Bul
+                                    </button>
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(relatedError))
+                            {
+                                <div class="alert alert-danger py-2 small mb-2">@relatedError</div>
+                            }
+                            @if (relatedProblems is not null)
+                            {
+                                @if (!relatedProblems.Any())
+                                {
+                                    <div class="text-muted small italic">Bağlantılı problem bulunamadı.</div>
+                                }
+                                else
+                                {
+                                    <div class="d-flex flex-column gap-2">
+                                        @foreach (var rel in relatedProblems)
+                                        {
+                                            var relId = FindProblemIdByTitle(rel.Title);
+                                            <div class="p-2 rounded border bg-light">
+                                                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                                                    <div>
+                                                        @if (relId is not null)
+                                                        {
+                                                            <a href="/problems/@relId" class="font-weight-bold text-primary text-decoration-none small">@rel.Title</a>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="font-weight-bold text-dark small">@rel.Title</span>
+                                                        }
+                                                        <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">@rel.RelationshipType</span>
+                                                    </div>
+                                                </div>
+                                                <div class="text-muted small mt-1">@rel.Explanation</div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
                             }
                         </div>
                     </div>
@@ -1477,6 +1534,12 @@
     private NoteType newNoteType = NoteType.General;
     private bool isAddingNote = false;
 
+    // Bağlantılı problemler state alanları
+    private List<MSC.IdeaForge.Domain.ValueObjects.RelatedProblem>? relatedProblems;
+    private bool isFindingRelated = false;
+    private string relatedError = "";
+    private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>? allProblemsCache;
+
     protected override async Task OnInitializedAsync()
     {
         // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma, çözümler, MVP planı ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
@@ -1603,6 +1666,45 @@
         {
             validationQuestions = new();
         }
+    }
+
+    /// <summary>
+    /// Yapay zeka ile bu problemle bağlantılı olabilecek diğer problemleri, mevcut problem başlıkları arasından bulur.
+    /// </summary>
+    private async Task FindRelatedProblems()
+    {
+        if (problem is null) return;
+
+        relatedError = "";
+        isFindingRelated = true;
+        relatedProblems = null;
+        StateHasChanged();
+        try
+        {
+            allProblemsCache = await GetProblemsHandler.HandleAsync();
+            var otherTitles = allProblemsCache
+                .Where(p => p.Id != Id)
+                .Select(p => p.Title)
+                .ToList();
+
+            relatedProblems = await AIProvider.FindRelatedProblemsAsync(problem.Title, problem.Description, otherTitles);
+        }
+        catch (Exception ex)
+        {
+            relatedError = $"Bağlantılı problemler aranırken bir hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isFindingRelated = false;
+            StateHasChanged();
+        }
+    }
+
+    // Başlığa göre problem ID'sini bulur (bulunamazsa null)
+    private Guid? FindProblemIdByTitle(string title)
+    {
+        var match = allProblemsCache?.FirstOrDefault(p => string.Equals(p.Title, title, StringComparison.OrdinalIgnoreCase));
+        return match?.Id;
     }
 
     /// <summary>

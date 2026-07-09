@@ -217,4 +217,19 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
     {
         throw new NotImplementedException();
     }
+
+    public Task<List<ChecklistItemSuggestion>> GenerateStartupChecklistAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<TeamRole>> AnalyzeTeamNeedsAsync(string title, string description, string? sector, string? solutionType)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<RelatedProblem>> FindRelatedProblemsAsync(string title, string description, List<string> allProblemTitles)
+    {
+        throw new NotImplementedException();
+    }
 }

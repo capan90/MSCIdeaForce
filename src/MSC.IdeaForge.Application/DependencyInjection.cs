@@ -37,6 +37,8 @@ using MSC.IdeaForge.Application.ProblemNotes.Queries;
 using MSC.IdeaForge.Application.Search;
 using MSC.IdeaForge.Application.BusinessCanvases.Commands;
 using MSC.IdeaForge.Application.BusinessCanvases.Queries;
+using MSC.IdeaForge.Application.Checklists.Commands;
+using MSC.IdeaForge.Application.Checklists.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -149,6 +151,12 @@ public static class DependencyInjection
         services.AddScoped<GenerateBusinessCanvasHandler>();
         services.AddScoped<SaveBusinessCanvasHandler>();
         services.AddScoped<GetBusinessCanvasHandler>();
+
+        // Başlangıç Kontrol Listesi işleyicileri
+        services.AddScoped<CreateChecklistItemHandler>();
+        services.AddScoped<UpdateChecklistItemHandler>();
+        services.AddScoped<DeleteChecklistItemHandler>();
+        services.AddScoped<GetChecklistItemsHandler>();
 
         return services;
     }

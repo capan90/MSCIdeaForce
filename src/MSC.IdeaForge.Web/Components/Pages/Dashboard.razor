@@ -444,6 +444,52 @@
                 </div>
             </div>
         </div>
+
+        @* Bu Hafta Özeti *@
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm border-0" style="border-radius: 12px; border: 2px solid #0d6efd;">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="m-0 font-weight-bold text-dark"><span class="bi bi-calendar-week text-primary"></span> Bu Hafta (Son 7 Gün)</h5>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="row g-3 text-center">
+                            <div class="col-6 col-md-3">
+                                <div class="p-2 rounded bg-light">
+                                    <div class="h4 font-weight-bold text-primary mb-0">@weeklyProblemCount</div>
+                                    <span class="text-muted small">Yeni Problem</span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-2 rounded bg-light">
+                                    <div class="h4 font-weight-bold mb-0" style="color:#6f42c1;">@weeklyAiAnalysisCount</div>
+                                    <span class="text-muted small">AI Analizi</span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-2 rounded bg-light">
+                                    <div class="h4 font-weight-bold text-success mb-0">@weeklyDecisionCount</div>
+                                    <span class="text-muted small">Karar</span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-2 rounded bg-light">
+                                    <div class="h6 font-weight-bold text-dark mb-0 text-truncate">@weeklyMostActiveSector</div>
+                                    <span class="text-muted small">En Aktif Sektör</span>
+                                </div>
+                            </div>
+                        </div>
+                        @if (data.UnscoredProblemsCount > 0)
+                        {
+                            <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 mb-0 py-2">
+                                <span class="small">💡 Şu an <strong>@data.UnscoredProblemsCount</strong> puanlanmamış problem var, puanlamak ister misiniz?</span>
+                                <button class="btn btn-sm btn-primary" @onclick='() => NavigationManager.NavigateTo("/problems")'>Problemlere Git</button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 </div>
 
@@ -462,6 +508,41 @@
 
     // Son Aktiviteler beslemesi
     private List<ActivityItem> recentActivities = new();
+
+    // Bu hafta özeti
+    private int weeklyProblemCount = 0;
+    private int weeklyAiAnalysisCount = 0;
+    private int weeklyDecisionCount = 0;
+    private string weeklyMostActiveSector = "Belirtilmemiş";
+
+    /// <summary>
+    /// Son 7 günün özetini mevcut verilerden hesaplar (eklenen problem, AI analizi, karar, en aktif sektör).
+    /// </summary>
+    private async Task BuildWeeklySummary(IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto> allProblems)
+    {
+        var threshold = DateTime.UtcNow.AddDays(-7);
+
+        weeklyProblemCount = allProblems.Count(p => p.CreatedAt >= threshold);
+        // AI analizi yaklaşık: bu hafta eklenip Analiz Edildi/Doğrulandı durumuna gelen problemler
+        weeklyAiAnalysisCount = allProblems.Count(p => (p.Status == "Analyzed" || p.Status == "Validated") && p.CreatedAt >= threshold);
+
+        try
+        {
+            var decisions = await GetAllDecisionsHandler.HandleAsync();
+            weeklyDecisionCount = decisions.Count(d => d.DecisionDate >= threshold);
+        }
+        catch { weeklyDecisionCount = 0; }
+
+        // En aktif sektör: öncelikle bu haftanın problemleri, yoksa genel dağılım
+        var weekProblems = allProblems.Where(p => p.CreatedAt >= threshold).ToList();
+        var source = weekProblems.Any() ? weekProblems : allProblems.ToList();
+        weeklyMostActiveSector = source
+            .Where(p => !string.IsNullOrWhiteSpace(p.Sector))
+            .GroupBy(p => p.Sector!)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .FirstOrDefault() ?? "Belirtilmemiş";
+    }
 
     // Fikir yaşam döngüsü (IdeaStatus) dağılımı ve öne çıkan fikirler
     private Dictionary<string, int> ideaStatusDistribution = new();
@@ -607,6 +688,7 @@
 
             BuildIdeaStatusData(allProblems);
             await BuildRecentActivities(allProblems);
+            await BuildWeeklySummary(allProblems);
         }
         catch (Exception ex)
         {
