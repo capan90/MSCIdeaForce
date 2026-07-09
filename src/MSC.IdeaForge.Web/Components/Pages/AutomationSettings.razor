@@ -1,0 +1,495 @@
+@page "/automation-settings"
+@rendermode InteractiveServer
+
+@inject MSC.IdeaForge.Application.Automation.Queries.GetRSSFeedsHandler GetRSSFeedsHandler
+@inject MSC.IdeaForge.Application.Automation.Commands.SaveRSSFeedHandler SaveRSSFeedHandler
+@inject MSC.IdeaForge.Application.Automation.Commands.DeleteRSSFeedHandler DeleteRSSFeedHandler
+@inject MSC.IdeaForge.Application.Automation.Queries.GetEmailSettingHandler GetEmailSettingHandler
+@inject MSC.IdeaForge.Application.Automation.Commands.SaveEmailSettingHandler SaveEmailSettingHandler
+@inject MSC.IdeaForge.Application.Automation.Commands.TriggerRSSScanHandler TriggerRSSScanHandler
+@inject MSC.IdeaForge.Application.Common.Interfaces.IEmailService EmailService
+@inject IJSRuntime JSRuntime
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 text-dark font-weight-bold mb-0">Otomasyon Ayarları</h1>
+            <p class="text-muted mb-0">Haber tarama (RSS) ve e-posta bildirim sistemini yapılandırın.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 10px;">
+            <span>@statusMessage</span>
+            <button type="button" class="btn-close" @onclick="() => statusMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 10px;">
+            <span>@errorMessage</span>
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        @* SOL TARAF: RSS FEED YÖNETİMİ *@
+        <div class="col-12 col-xl-7">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 16px;">
+                <div class="card-header bg-white border-0 pt-4 pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="m-0 font-weight-bold text-dark"><span class="bi bi-rss text-primary"></span> RSS Haber Kaynakları</h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary btn-sm" @onclick="AddDefaultTurkishFeeds" disabled="@isTurkishAdding">
+                            @if (isTurkishAdding)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            }
+                            else
+                            {
+                                <span>🇹🇷 Varsayılanları Ekle</span>
+                            }
+                        </button>
+                        <button class="btn btn-primary btn-sm" @onclick="TriggerManualScan" disabled="@isScanning">
+                            @if (isScanning)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span>Taranıyor...</span>
+                            }
+                            else
+                            {
+                                <span class="bi bi-play-fill"></span> <span>Şimdi Tara</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body px-4">
+                    @* Yeni Feed Ekleme Formu *@
+                    <div class="bg-light p-3 rounded-lg mb-4" style="border-radius: 12px; border: 1px solid #e9ecef;">
+                        <h6 class="font-weight-bold text-dark mb-3">Yeni Kaynak Ekle</h6>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-5">
+                                <input type="text" class="form-control" placeholder="Kaynak Adı (örn: Webrazzi)" @bind="newFeedName" />
+                            </div>
+                            <div class="col-12 col-md-5">
+                                <input type="url" class="form-control" placeholder="RSS Feed URL" @bind="newFeedUrl" />
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <button class="btn btn-primary w-100" @onclick="AddFeed" disabled="@isFeedSaving">Ekle</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* RSS Feeds Tablosu *@
+                    @if (feeds == null)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Yükleniyor...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (!feeds.Any())
+                    {
+                        <div class="text-center py-5">
+                            <span class="bi bi-rss-fill text-muted" style="font-size: 3rem;"></span>
+                            <p class="text-muted mt-3">Kayıtlı haber kaynağı bulunmamaktadır. Varsayılan kaynakları ekleyerek başlayabilirsiniz.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Kaynak Adı</th>
+                                        <th>URL</th>
+                                        <th>Durum</th>
+                                        <th>Son Tarama</th>
+                                        <th>Bulunan Sinyal</th>
+                                        <th class="text-end">İşlem</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var feed in feeds)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="font-weight-bold text-dark">@feed.Name</div>
+                                            </td>
+                                            <td>
+                                                <a href="@feed.Url" target="_blank" class="text-muted small text-truncate d-inline-block" style="max-width: 180px;">@feed.Url</a>
+                                            </td>
+                                            <td>
+                                                <span class="badge @(feed.IsActive ? "bg-success" : "bg-secondary")">
+                                                    @(feed.IsActive ? "Aktif" : "Pasif")
+                                                </span>
+                                            </td>
+                                            <td class="small text-muted">
+                                                @(feed.LastScannedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "-")
+                                            </td>
+                                            <td class="text-center font-weight-bold">
+                                                @feed.LastSignalCount
+                                            </td>
+                                            <td class="text-end">
+                                                <div class="d-flex justify-content-end gap-2">
+                                                    <button class="btn btn-xs @(feed.IsActive ? "btn-outline-warning" : "btn-outline-success")" @onclick="() => ToggleFeedStatus(feed)" title="Durumu Değiştir">
+                                                        <span class="bi @(feed.IsActive ? "bi-eye-slash-fill" : "bi-eye-fill")"></span>
+                                                    </button>
+                                                    <button class="btn btn-xs btn-outline-danger" @onclick="() => DeleteFeed(feed.Id)" title="Sil">
+                                                        <span class="bi bi-trash-fill"></span>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* SAĞ TARAF: SMTP & E-POSTA AYARLARI *@
+        <div class="col-12 col-xl-5">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 16px;">
+                <div class="card-header bg-white border-0 pt-4 pb-2">
+                    <h5 class="m-0 font-weight-bold text-dark"><span class="bi bi-envelope text-primary"></span> E-posta Raporu & SMTP Ayarları</h5>
+                </div>
+                <div class="card-body px-4">
+                    <div class="mb-4">
+                        <div class="form-check form-switch p-3 bg-light rounded" style="border-radius: 12px; border: 1px solid #e9ecef;">
+                            <input class="form-check-input ms-0 me-2" type="checkbox" id="dailySummarySwitch" @bind="emailSetting.DailySummaryEnabled" />
+                            <label class="form-check-label font-weight-bold text-dark" for="dailySummarySwitch">
+                                Günlük Özet Raporu (Sabah 09:00'da gönderilir)
+                            </label>
+                            <div class="text-muted small mt-1">Aktifleştirilirse, her sabah dünün özeti, puanlanmamış problemler ve en yüksek skorlu fikir e-posta ile raporlanır.</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label text-dark font-weight-bold small">SMTP Sunucu Adresi (SmtpHost)</label>
+                            <input type="text" class="form-control" placeholder="smtp.gmail.com" @bind="emailSetting.SmtpHost" />
+                        </div>
+                        
+                        <div class="col-12 col-md-4">
+                            <label class="form-label text-dark font-weight-bold small">Port (SmtpPort)</label>
+                            <input type="number" class="form-control" placeholder="587" @bind="emailSetting.SmtpPort" />
+                        </div>
+
+                        <div class="col-12 col-md-8">
+                            <label class="form-label text-dark font-weight-bold small">SMTP Kullanıcı Adı (Email)</label>
+                            <input type="text" class="form-control" placeholder="user@gmail.com" @bind="emailSetting.SmtpUser" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label text-dark font-weight-bold small">SMTP Şifresi</label>
+                            <input type="password" class="form-control" placeholder="••••••••••••" @bind="emailSetting.SmtpPassword" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label text-dark font-weight-bold small">Gönderen E-postası (FromEmail)</label>
+                            <input type="email" class="form-control" placeholder="noreply@domain.com" @bind="emailSetting.FromEmail" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label text-dark font-weight-bold small">Gönderen Adı (FromName)</label>
+                            <input type="text" class="form-control" placeholder="MSC IdeaForge" @bind="emailSetting.FromName" />
+                        </div>
+
+                        <div class="col-12" style="border-top: 1px solid #e9ecef; padding-top: 15px;">
+                            <label class="form-label text-dark font-weight-bold small">Raporların Gönderileceği Alıcı E-postası (ReceiverEmail)</label>
+                            <input type="email" class="form-control" placeholder="admin@domain.com" @bind="emailSetting.ReceiverEmail" />
+                        </div>
+
+                        <div class="col-12 d-flex gap-2 mt-4">
+                            <button class="btn btn-outline-primary flex-grow-1" @onclick="SendTestEmail" disabled="@(isEmailSaving || isTestSending)">
+                                @if (isTestSending)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <span>Gönderiliyor...</span>
+                                }
+                                else
+                                {
+                                    <span>Test E-postası Gönder</span>
+                                }
+                            </button>
+                            <button class="btn btn-primary flex-grow-1" @onclick="SaveEmailSettings" disabled="@isEmailSaving">
+                                @if (isEmailSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                }
+                                <span>Ayarları Kaydet</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<MSC.IdeaForge.Application.Automation.DTOs.RSSFeedDto> feeds;
+    private MSC.IdeaForge.Application.Automation.DTOs.EmailSettingDto emailSetting = new();
+
+    private string newFeedName = "";
+    private string newFeedUrl = "";
+
+    private string statusMessage;
+    private string errorMessage;
+
+    private bool isFeedSaving = false;
+    private bool isEmailSaving = false;
+    private bool isTestSending = false;
+    private bool isScanning = false;
+    private bool isTurkishAdding = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            var result = await GetRSSFeedsHandler.HandleAsync(new MSC.IdeaForge.Application.Automation.Queries.GetRSSFeedsQuery());
+            feeds = result.ToList();
+
+            emailSetting = await GetEmailSettingHandler.HandleAsync(new MSC.IdeaForge.Application.Automation.Queries.GetEmailSettingQuery());
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Veriler yüklenirken hata oluştu: {ex.Message}";
+        }
+    }
+
+    private async Task AddFeed()
+    {
+        statusMessage = null;
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(newFeedName) || string.IsNullOrWhiteSpace(newFeedUrl))
+        {
+            errorMessage = "Kaynak adı ve URL'si zorunludur.";
+            return;
+        }
+
+        isFeedSaving = true;
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Automation.Commands.SaveRSSFeedCommand
+            {
+                Name = newFeedName.Trim(),
+                Url = newFeedUrl.Trim(),
+                IsActive = true
+            };
+
+            await SaveRSSFeedHandler.HandleAsync(command);
+            newFeedName = "";
+            newFeedUrl = "";
+            statusMessage = "Haber kaynağı başarıyla eklendi.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ekleme sırasında hata: {ex.Message}";
+        }
+        finally
+        {
+            isFeedSaving = false;
+        }
+    }
+
+    private async Task ToggleFeedStatus(MSC.IdeaForge.Application.Automation.DTOs.RSSFeedDto feed)
+    {
+        statusMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Automation.Commands.SaveRSSFeedCommand
+            {
+                Id = feed.Id,
+                Name = feed.Name,
+                Url = feed.Url,
+                IsActive = !feed.IsActive
+            };
+
+            await SaveRSSFeedHandler.HandleAsync(command);
+            statusMessage = "Kaynak durumu güncellendi.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Güncelleme sırasında hata: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteFeed(Guid id)
+    {
+        statusMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            await DeleteRSSFeedHandler.HandleAsync(new MSC.IdeaForge.Application.Automation.Commands.DeleteRSSFeedCommand { Id = id });
+            statusMessage = "Haber kaynağı silindi.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Silme sırasında hata: {ex.Message}";
+        }
+    }
+
+    private async Task TriggerManualScan()
+    {
+        statusMessage = null;
+        errorMessage = null;
+        isScanning = true;
+        StateHasChanged();
+
+        try
+        {
+            await TriggerRSSScanHandler.HandleAsync(new MSC.IdeaForge.Application.Automation.Commands.TriggerRSSScanCommand());
+            statusMessage = "Manuel tarama işlemi başarıyla tamamlandı. Yeni sinyaller aktarıldı.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Tarama sırasında hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isScanning = false;
+        }
+    }
+
+    private async Task AddDefaultTurkishFeeds()
+    {
+        statusMessage = null;
+        errorMessage = null;
+        isTurkishAdding = true;
+
+        var defaultFeeds = new List<(string Name, string Url)>
+        {
+            ("TRT Haber Sondakika", "https://www.trthaber.com/sondakika.rss"),
+            ("BBC Türkçe", "https://feeds.bbci.co.uk/turkce/rss.xml"),
+            ("Habertürk", "https://www.haberturk.com/rss"),
+            ("Webrazzi", "https://webrazzi.com/feed/"),
+            ("ShiftDelete", "https://shiftdelete.net/feed"),
+            ("DonanımHaber", "https://www.donanimhaber.com/rss/tum/")
+        };
+
+        try
+        {
+            int addedCount = 0;
+            foreach (var feed in defaultFeeds)
+            {
+                // URL duplicate check
+                if (!feeds.Any(f => f.Url.Equals(feed.Url, StringComparison.OrdinalIgnoreCase)))
+                {
+                    await SaveRSSFeedHandler.HandleAsync(new MSC.IdeaForge.Application.Automation.Commands.SaveRSSFeedCommand
+                    {
+                        Name = feed.Name,
+                        Url = feed.Url,
+                        IsActive = true
+                    });
+                    addedCount++;
+                }
+            }
+
+            statusMessage = $"{addedCount} adet varsayılan Türkçe kaynak başarıyla eklendi.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Varsayılanlar eklenirken hata: {ex.Message}";
+        }
+        finally
+        {
+            isTurkishAdding = false;
+        }
+    }
+
+    private async Task SaveEmailSettings()
+    {
+        statusMessage = null;
+        errorMessage = null;
+        isEmailSaving = true;
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Automation.Commands.SaveEmailSettingCommand
+            {
+                SmtpHost = emailSetting.SmtpHost?.Trim() ?? "",
+                SmtpPort = emailSetting.SmtpPort,
+                SmtpUser = emailSetting.SmtpUser?.Trim() ?? "",
+                SmtpPassword = emailSetting.SmtpPassword ?? "",
+                FromEmail = emailSetting.FromEmail?.Trim() ?? "",
+                FromName = emailSetting.FromName?.Trim() ?? "MSC IdeaForge",
+                ReceiverEmail = emailSetting.ReceiverEmail?.Trim() ?? "",
+                DailySummaryEnabled = emailSetting.DailySummaryEnabled
+            };
+
+            await SaveEmailSettingHandler.HandleAsync(command);
+            statusMessage = "E-posta ayarları başarıyla kaydedildi.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ayarlar kaydedilirken hata: {ex.Message}";
+        }
+        finally
+        {
+            isEmailSaving = false;
+        }
+    }
+
+    private async Task SendTestEmail()
+    {
+        statusMessage = null;
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(emailSetting.ReceiverEmail))
+        {
+            errorMessage = "Test e-postası göndermek için Alıcı E-postası alanı doldurulmalıdır.";
+            return;
+        }
+
+        isTestSending = true;
+        try
+        {
+            // Önce mevcut formdaki şifre vb. bilgileri testte anlık kullanabilmek için DB'ye kaydedelim
+            await SaveEmailSettings();
+
+            var subject = "MSC IdeaForge - SMTP Test E-postası";
+            var body = $@"
+                <html>
+                <body style='font-family: Arial, sans-serif;'>
+                    <h2>SMTP Test E-postası</h2>
+                    <p>Bu e-posta, <strong>MSC IdeaForge</strong> SMTP sunucu ayarlarınızı doğrulamak amacıyla gönderilmiştir.</p>
+                    <p>Eğer bu e-postayı görüyorsanız SMTP ayarlarınız başarıyla yapılandırılmış demektir.</p>
+                    <br/>
+                    <p>Tarih: {DateTime.Now:dd.MM.yyyy HH:mm:ss}</p>
+                </body>
+                </html>";
+
+            await EmailService.SendEmailAsync(emailSetting.ReceiverEmail, subject, body);
+            statusMessage = $"Test e-postası başarıyla gönderildi: {emailSetting.ReceiverEmail}";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Test e-postası gönderilirken SMTP hatası oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isTestSending = false;
+        }
+    }
+}

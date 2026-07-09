@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MSC.IdeaForge.Application.Common.Interfaces;
 using MSC.IdeaForge.Domain.Interfaces;
 using MSC.IdeaForge.Infrastructure.AI;
 using MSC.IdeaForge.Infrastructure.Persistence;
 using MSC.IdeaForge.Infrastructure.Persistence.Repositories;
+using MSC.IdeaForge.Infrastructure.Services;
 
 namespace MSC.IdeaForge.Infrastructure;
 
@@ -37,6 +39,10 @@ public static class DependencyInjection
         services.AddScoped<IChecklistRepository, ChecklistRepository>();
         services.AddScoped<IRiskRepository, RiskRepository>();
         services.AddScoped<IActionPlanRepository, ActionPlanRepository>();
+        
+        services.AddScoped<IRSSFeedRepository, RSSFeedRepository>();
+        services.AddScoped<IEmailSettingRepository, EmailSettingRepository>();
+        services.AddScoped<IEmailService, EmailService>();
 
         // HttpClient ve GeminiAIProvider bağımlılıklarını ekliyoruz
         services.AddScoped<HttpClient>();

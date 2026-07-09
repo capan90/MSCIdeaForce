@@ -13,6 +13,8 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<MSC.IdeaForge.Infrastructure.BackgroundServices.RSSBackgroundService>();
+builder.Services.AddHostedService<MSC.IdeaForge.Infrastructure.BackgroundServices.EmailBackgroundService>();
 
 var app = builder.Build();
 

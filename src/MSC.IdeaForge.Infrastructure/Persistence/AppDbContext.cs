@@ -29,6 +29,8 @@ public class AppDbContext : DbContext
     public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
     public DbSet<RiskItem> RiskItems => Set<RiskItem>();
     public DbSet<ActionPlan> ActionPlans => Set<ActionPlan>();
+    public DbSet<RSSFeed> RSSFeeds => Set<RSSFeed>();
+    public DbSet<EmailSetting> EmailSettings => Set<EmailSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -181,6 +183,20 @@ public class AppDbContext : DbContext
         });
 
         modelBuilder.Entity<ActionPlan>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<RSSFeed>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Url).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(500);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<EmailSetting>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasQueryFilter(e => !e.IsDeleted);

@@ -43,6 +43,8 @@ using MSC.IdeaForge.Application.Risks.Commands;
 using MSC.IdeaForge.Application.Risks.Queries;
 using MSC.IdeaForge.Application.ActionPlans.Commands;
 using MSC.IdeaForge.Application.ActionPlans.Queries;
+using MSC.IdeaForge.Application.Automation.Commands;
+using MSC.IdeaForge.Application.Automation.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -169,6 +171,14 @@ public static class DependencyInjection
         // Aksiyon Planı işleyicileri
         services.AddScoped<GenerateActionPlanHandler>();
         services.AddScoped<GetActionPlanHandler>();
+
+        // Otomasyon işleyicileri
+        services.AddScoped<SaveRSSFeedHandler>();
+        services.AddScoped<DeleteRSSFeedHandler>();
+        services.AddScoped<GetRSSFeedsHandler>();
+        services.AddScoped<SaveEmailSettingHandler>();
+        services.AddScoped<GetEmailSettingHandler>();
+        services.AddScoped<TriggerRSSScanHandler>();
 
         return services;
     }
