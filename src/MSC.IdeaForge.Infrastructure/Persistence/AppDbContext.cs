@@ -25,6 +25,7 @@ public class AppDbContext : DbContext
     public DbSet<FieldNote> FieldNotes => Set<FieldNote>();
     public DbSet<InvestorBrief> InvestorBriefs => Set<InvestorBrief>();
     public DbSet<ProblemNote> ProblemNotes => Set<ProblemNote>();
+    public DbSet<BusinessCanvas> BusinessCanvases => Set<BusinessCanvas>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -153,6 +154,12 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Content).IsRequired();
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<BusinessCanvas>(entity =>
+        {
+            entity.HasKey(e => e.Id);
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }

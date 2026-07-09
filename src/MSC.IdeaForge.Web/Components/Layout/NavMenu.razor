@@ -1,3 +1,5 @@
+@using MSC.IdeaForge.Web.Components.Shared
+
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">MSC IdeaForge</a>
@@ -7,7 +9,8 @@
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    @* Sistem geneli arama kutusu *@
+    @* Bildirim zili ve sistem geneli arama kutusu *@
+    <NotificationBell />
     <GlobalSearch />
 
     <nav class="nav flex-column">
@@ -80,6 +83,18 @@
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="grant-finder">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Hibe Bulucu
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="market-size">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Pazar Hesaplayıcı
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="business-canvas">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Business Canvas
             </NavLink>
         </div>
 

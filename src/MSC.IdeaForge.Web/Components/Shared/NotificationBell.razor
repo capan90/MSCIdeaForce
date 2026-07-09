@@ -1,0 +1,141 @@
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Application.Problems.DTOs
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject MSC.IdeaForge.Application.Opportunities.Queries.GetOpportunityByProblemHandler GetOpportunityByProblemHandler
+@inject MSC.IdeaForge.Application.Validations.Queries.GetValidationByProblemHandler GetValidationByProblemHandler
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemAnalysisHandler GetProblemAnalysisHandler
+@inject NavigationManager NavigationManager
+
+@* Bildirim zili (NavMenu üstünde) *@
+<div class="px-3 py-2 position-relative">
+    <button class="btn btn-sm w-100 d-flex align-items-center justify-content-between text-white" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);" @onclick="ToggleDropdown">
+        <span>🔔 Bildirimler</span>
+        @if (TotalCount > 0)
+        {
+            <span class="badge bg-danger rounded-pill">@TotalCount</span>
+        }
+    </button>
+
+    @if (showDropdown)
+    {
+        <div class="position-absolute shadow" style="top: 100%; left: 0.75rem; right: 0.75rem; z-index: 1050; background: #fff; border-radius: 8px; max-height: 60vh; overflow-y: auto; border: 1px solid #dee2e6;">
+            @if (isLoading)
+            {
+                <div class="p-2 text-muted small text-center">Yükleniyor...</div>
+            }
+            else if (TotalCount == 0)
+            {
+                <div class="p-2 text-muted small text-center">🎉 Bekleyen işlem yok.</div>
+            }
+            else
+            {
+                @RenderCategory("Puanlanmamış", unscored, "#dc3545")
+                @RenderCategory("Doğrulanmamış", unvalidated, "#fd7e14")
+                @RenderCategory("AI Analizi Yapılmamış", unanalyzed, "#6f42c1")
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool showDropdown = false;
+    private bool isLoading = false;
+    private bool loaded = false;
+
+    private List<SimpleItem> unscored = new();
+    private List<SimpleItem> unvalidated = new();
+    private List<SimpleItem> unanalyzed = new();
+
+    private int TotalCount => unscored.Count + unvalidated.Count + unanalyzed.Count;
+
+    private record SimpleItem(Guid Id, string Title);
+
+    /// <summary>
+    /// Zile tıklandığında açar/kapatır; ilk açılışta bildirimleri hesaplar.
+    /// </summary>
+    private async Task ToggleDropdown()
+    {
+        showDropdown = !showDropdown;
+        if (showDropdown && !loaded)
+        {
+            await LoadNotifications();
+        }
+    }
+
+    /// <summary>
+    /// Mevcut handler'lardan bekleyen işlemleri (client-side) hesaplar.
+    /// </summary>
+    private async Task LoadNotifications()
+    {
+        isLoading = true;
+        StateHasChanged();
+        try
+        {
+            var problems = await GetProblemsHandler.HandleAsync();
+            unscored.Clear();
+            unvalidated.Clear();
+            unanalyzed.Clear();
+
+            foreach (var p in problems)
+            {
+                var opp = await GetOpportunityByProblemHandler.HandleAsync(p.Id);
+                if (opp is null || opp.TotalScore <= 0)
+                {
+                    unscored.Add(new SimpleItem(p.Id, p.Title));
+                }
+
+                var validation = await GetValidationByProblemHandler.HandleAsync(p.Id);
+                if (validation is null)
+                {
+                    unvalidated.Add(new SimpleItem(p.Id, p.Title));
+                }
+
+                var analysis = await GetProblemAnalysisHandler.HandleAsync(p.Id);
+                if (analysis is null)
+                {
+                    unanalyzed.Add(new SimpleItem(p.Id, p.Title));
+                }
+            }
+            loaded = true;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoTo(Guid problemId)
+    {
+        showDropdown = false;
+        NavigationManager.NavigateTo($"/problems/{problemId}");
+    }
+
+    // Tek bir bildirim kategorisini render eder
+    private RenderFragment RenderCategory(string title, List<SimpleItem> items, string color) => __builder =>
+    {
+        <div class="border-bottom">
+            <div class="px-2 pt-2 pb-1 d-flex justify-content-between align-items-center" style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: @color;">
+                <span>@title</span>
+                <span class="badge rounded-pill text-white" style="background-color: @color;">@items.Count</span>
+            </div>
+            @if (items.Count == 0)
+            {
+                <div class="px-2 pb-2 text-muted" style="font-size: 0.72rem;">—</div>
+            }
+            else
+            {
+                @foreach (var item in items.Take(8))
+                {
+                    <button type="button" class="btn btn-sm w-100 text-start px-2 py-1 text-truncate" style="font-size: 0.78rem;" @onclick="() => GoTo(item.Id)">
+                        @item.Title
+                    </button>
+                }
+                @if (items.Count > 8)
+                {
+                    <div class="px-2 pb-1 text-muted" style="font-size: 0.7rem;">+@(items.Count - 8) daha...</div>
+                }
+            }
+        </div>
+    };
+}

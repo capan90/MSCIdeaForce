@@ -207,4 +207,14 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
     {
         throw new NotImplementedException();
     }
+
+    public Task<MarketSizeResult> CalculateMarketSizeAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<BusinessCanvasResult> GenerateBusinessCanvasAsync(string title, string description, string? sector, string? solutionType)
+    {
+        throw new NotImplementedException();
+    }
 }

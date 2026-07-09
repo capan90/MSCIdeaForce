@@ -1,0 +1,252 @@
+@page "/business-canvas"
+@rendermode InteractiveServer
+@using System.Text
+@using MSC.IdeaForge.Application.BusinessCanvases.DTOs
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject MSC.IdeaForge.Application.BusinessCanvases.Commands.GenerateBusinessCanvasHandler GenerateBusinessCanvasHandler
+@inject MSC.IdeaForge.Application.BusinessCanvases.Commands.SaveBusinessCanvasHandler SaveBusinessCanvasHandler
+@inject MSC.IdeaForge.Application.BusinessCanvases.Queries.GetBusinessCanvasHandler GetBusinessCanvasHandler
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Business Canvas</PageTitle>
+
+<style>
+    /* Klasik Business Model Canvas 9 bloklu grid yerleşimi */
+    .bmc-grid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        grid-auto-rows: minmax(120px, auto);
+        gap: 8px;
+        min-width: 760px;
+    }
+    .bmc-kp { grid-area: 1 / 1 / 3 / 3; }
+    .bmc-ka { grid-area: 1 / 3 / 2 / 5; }
+    .bmc-kr { grid-area: 2 / 3 / 3 / 5; }
+    .bmc-vp { grid-area: 1 / 5 / 3 / 7; }
+    .bmc-cr { grid-area: 1 / 7 / 2 / 9; }
+    .bmc-ch { grid-area: 2 / 7 / 3 / 9; }
+    .bmc-cu { grid-area: 1 / 9 / 3 / 11; }
+    .bmc-co { grid-area: 3 / 1 / 4 / 6; }
+    .bmc-re { grid-area: 3 / 6 / 4 / 11; }
+    .bmc-block {
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        padding: 8px;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+    }
+    .bmc-block label { font-size: 0.72rem; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; }
+    .bmc-block textarea { flex: 1; border: none; resize: none; font-size: 0.78rem; outline: none; background: transparent; }
+</style>
+
+<div class="container-fluid mt-4" style="max-width: 1200px;">
+    <div class="mb-4 d-flex justify-content-between align-items-end flex-wrap gap-2">
+        <div>
+            <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Business Model Canvas</h1>
+            <p class="text-muted mb-0">Seçilen problem için iş modeli kanvasının 9 bloğunu oluşturun ve düzenleyin.</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-3" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0 !important;">
+        <div class="card-body p-3">
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="alert @(isError ? "alert-danger" : "alert-success") py-2 mb-3 small">@message</div>
+            }
+            <div class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Problem Seçin</label>
+                    <select class="form-select form-select-sm" value="@selectedProblemId" @onchange="OnProblemSelected">
+                        <option value="">-- Problem seçin --</option>
+                        @if (problems is not null)
+                        {
+                            @foreach (var p in problems)
+                            {
+                                <option value="@p.Id">@p.Title</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6 d-flex gap-2 justify-content-md-end">
+                    @if (isGenerating)
+                    {
+                        <button class="btn btn-primary btn-sm d-flex align-items-center gap-2" disabled>
+                            <span class="spinner-border spinner-border-sm" role="status"></span> Oluşturuluyor...
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary btn-sm" @onclick="Generate" disabled="@(selectedProblemId == Guid.Empty)">🤖 AI ile Canvas Oluştur</button>
+                    }
+                    <button class="btn btn-success btn-sm" @onclick="Save" disabled="@(selectedProblemId == Guid.Empty || isSaving)">💾 Kaydet</button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="Copy" disabled="@(selectedProblemId == Guid.Empty)">📋 Kopyala</button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(copyMessage))
+            {
+                <div class="text-success small font-weight-bold mt-2">@copyMessage</div>
+            }
+        </div>
+    </div>
+
+    @* 9 bloklu BMC grid (yatay kaydırılabilir) *@
+    <div style="overflow-x: auto;">
+        <div class="bmc-grid">
+            <div class="bmc-block bmc-kp"><label>Kilit Ortaklar</label><textarea @bind="keyPartners"></textarea></div>
+            <div class="bmc-block bmc-ka"><label>Kilit Faaliyetler</label><textarea @bind="keyActivities"></textarea></div>
+            <div class="bmc-block bmc-kr"><label>Kilit Kaynaklar</label><textarea @bind="keyResources"></textarea></div>
+            <div class="bmc-block bmc-vp"><label>Değer Önerileri</label><textarea @bind="valuePropositions"></textarea></div>
+            <div class="bmc-block bmc-cr"><label>Müşteri İlişkileri</label><textarea @bind="customerRelationships"></textarea></div>
+            <div class="bmc-block bmc-ch"><label>Kanallar</label><textarea @bind="channels"></textarea></div>
+            <div class="bmc-block bmc-cu"><label>Müşteri Segmentleri</label><textarea @bind="customerSegments"></textarea></div>
+            <div class="bmc-block bmc-co"><label>Maliyet Yapısı</label><textarea @bind="costStructure"></textarea></div>
+            <div class="bmc-block bmc-re"><label>Gelir Akışları</label><textarea @bind="revenueStreams"></textarea></div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>? problems;
+    private Guid selectedProblemId = Guid.Empty;
+    private bool isGenerating = false;
+    private bool isSaving = false;
+    private string message = "";
+    private bool isError = false;
+    private string copyMessage = "";
+
+    // 9 blok alanları
+    private string keyPartners = "", keyActivities = "", keyResources = "";
+    private string valuePropositions = "", customerRelationships = "", channels = "";
+    private string customerSegments = "", costStructure = "", revenueStreams = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        problems = await GetProblemsHandler.HandleAsync();
+    }
+
+    private async Task OnProblemSelected(ChangeEventArgs e)
+    {
+        message = "";
+        copyMessage = "";
+        if (Guid.TryParse(e.Value?.ToString(), out var id))
+        {
+            selectedProblemId = id;
+            var existing = await GetBusinessCanvasHandler.HandleAsync(id);
+            FillFields(existing);
+        }
+        else
+        {
+            selectedProblemId = Guid.Empty;
+            FillFields(null);
+        }
+    }
+
+    /// <summary>
+    /// Seçili problem için AI ile canvas üretir ve alanları doldurur.
+    /// </summary>
+    private async Task Generate()
+    {
+        if (selectedProblemId == Guid.Empty) return;
+
+        message = "";
+        copyMessage = "";
+        isGenerating = true;
+        StateHasChanged();
+        try
+        {
+            var dto = await GenerateBusinessCanvasHandler.HandleAsync(
+                new MSC.IdeaForge.Application.BusinessCanvases.Commands.GenerateBusinessCanvasCommand { ProblemId = selectedProblemId });
+            FillFields(dto);
+        }
+        catch (Exception ex)
+        {
+            message = $"Canvas oluşturulurken bir hata oluştu: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isGenerating = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Düzenlenen canvas alanlarını kaydeder.
+    /// </summary>
+    private async Task Save()
+    {
+        if (selectedProblemId == Guid.Empty) return;
+
+        isSaving = true;
+        message = "";
+        try
+        {
+            await SaveBusinessCanvasHandler.HandleAsync(new MSC.IdeaForge.Application.BusinessCanvases.Commands.SaveBusinessCanvasCommand
+            {
+                ProblemId = selectedProblemId,
+                KeyPartners = keyPartners,
+                KeyActivities = keyActivities,
+                KeyResources = keyResources,
+                ValuePropositions = valuePropositions,
+                CustomerRelationships = customerRelationships,
+                Channels = channels,
+                CustomerSegments = customerSegments,
+                CostStructure = costStructure,
+                RevenueStreams = revenueStreams
+            });
+            message = "Canvas kaydedildi ✓";
+            isError = false;
+        }
+        catch (Exception ex)
+        {
+            message = $"Kaydetme sırasında bir hata oluştu: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    /// <summary>
+    /// Canvas içeriğini panoya kopyalar.
+    /// </summary>
+    private async Task Copy()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("BUSINESS MODEL CANVAS");
+        sb.AppendLine($"Kilit Ortaklar: {keyPartners}");
+        sb.AppendLine($"Kilit Faaliyetler: {keyActivities}");
+        sb.AppendLine($"Kilit Kaynaklar: {keyResources}");
+        sb.AppendLine($"Değer Önerileri: {valuePropositions}");
+        sb.AppendLine($"Müşteri İlişkileri: {customerRelationships}");
+        sb.AppendLine($"Kanallar: {channels}");
+        sb.AppendLine($"Müşteri Segmentleri: {customerSegments}");
+        sb.AppendLine($"Maliyet Yapısı: {costStructure}");
+        sb.AppendLine($"Gelir Akışları: {revenueStreams}");
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("appInterop.copyToClipboard", sb.ToString());
+            copyMessage = "Kopyalandı!";
+        }
+        catch
+        {
+            copyMessage = "Kopyalanamadı.";
+        }
+    }
+
+    // Alanları DTO'dan doldurur (null ise temizler)
+    private void FillFields(BusinessCanvasDto? dto)
+    {
+        keyPartners = dto?.KeyPartners ?? "";
+        keyActivities = dto?.KeyActivities ?? "";
+        keyResources = dto?.KeyResources ?? "";
+        valuePropositions = dto?.ValuePropositions ?? "";
+        customerRelationships = dto?.CustomerRelationships ?? "";
+        channels = dto?.Channels ?? "";
+        customerSegments = dto?.CustomerSegments ?? "";
+        costStructure = dto?.CostStructure ?? "";
+        revenueStreams = dto?.RevenueStreams ?? "";
+    }
+}

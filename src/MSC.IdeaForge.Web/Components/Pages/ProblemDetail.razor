@@ -381,6 +381,33 @@
                                 </button>
                             }
                         </div>
+
+                        @* AKTİVİTE AKIŞI PANELİ *@
+                        <div class="mt-4 p-3 border rounded bg-white shadow-sm" style="border-radius: 12px;">
+                            <h6 class="font-weight-bold text-dark mb-3">🕒 Aktivite Akışı</h6>
+                            @{
+                                var activities = BuildActivityFlow();
+                            }
+                            @if (!activities.Any())
+                            {
+                                <div class="text-muted small italic">Bu problem için henüz bir aktivite bulunmuyor.</div>
+                            }
+                            else
+                            {
+                                <div class="position-relative ps-4" style="border-left: 2px solid #e3e6f0;">
+                                    @foreach (var a in activities)
+                                    {
+                                        <div class="mb-3 position-relative">
+                                            <span class="position-absolute" style="left: -1.65rem; top: 0.2rem; width: 0.7rem; height: 0.7rem; border-radius: 50%; background-color: @a.Color;"></span>
+                                            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                                                <span class="small text-dark">@a.Icon @a.Label</span>
+                                                <span class="text-muted font-mono" style="font-size: 0.72rem; white-space: nowrap;">@a.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
                     </div>
                 }
             </div>
@@ -1576,6 +1603,41 @@
         {
             validationQuestions = new();
         }
+    }
+
+    /// <summary>
+    /// Bu probleme ait tüm aktiviteleri mevcut yüklü verilerden kronolojik olarak oluşturur.
+    /// </summary>
+    private record ActivityFlowItem(string Icon, string Label, DateTime Timestamp, string Color);
+
+    private List<ActivityFlowItem> BuildActivityFlow()
+    {
+        var list = new List<ActivityFlowItem>();
+
+        if (problem is not null)
+            list.Add(new("📌", "Problem oluşturuldu", problem.CreatedAt, "#6c757d"));
+        if (problemAnalysis is not null)
+            list.Add(new("🤖", "AI Analizi yapıldı", problemAnalysis.AnalyzedAt, "#6f42c1"));
+        if (researchDto?.ResearchedAt is not null)
+            list.Add(new("🔍", "Araştırma yapıldı", researchDto.ResearchedAt.Value, "#0284c7"));
+        if (opportunity is not null)
+            list.Add(new("⭐", "Fırsat skorlandı", opportunity.CreatedAt, "#198754"));
+        if (validationDto is not null)
+            list.Add(new("✅", "Doğrulama güncellendi", validationDto.CreatedAt, "#0dcaf0"));
+        if (solutions is not null && solutions.Any())
+            list.Add(new("💡", $"Çözüm önerildi ({solutions.Count()} öneri)", solutions.Min(s => s.CreatedAt), "#0f5132"));
+        if (mvpPlanDto is not null)
+            list.Add(new("🚀", "MVP Planı oluşturuldu", mvpPlanDto.UpdatedAt ?? mvpPlanDto.CreatedAt, "#4f46e5"));
+        if (revenueDto is not null)
+            list.Add(new("💰", "Gelir analizi yapıldı", revenueDto.AnalyzedAt, "#059669"));
+        if (decisions is not null)
+            foreach (var d in decisions)
+                list.Add(new("📋", $"Karar verildi ({GetDecisionTypeText(d.DecisionType)})", d.DecisionDate, "#475569"));
+        if (problemNotes is not null)
+            foreach (var n in problemNotes)
+                list.Add(new("📝", $"Not eklendi ({GetNoteTypeText(n.NoteType)})", n.CreatedAt, GetNoteTypeColor(n.NoteType)));
+
+        return list.OrderBy(a => a.Timestamp).ToList();
     }
 
     /// <summary>

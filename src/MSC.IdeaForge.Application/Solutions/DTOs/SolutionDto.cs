@@ -17,4 +17,5 @@ public class SolutionDto
     public string? Pros { get; set; }
     public string? Cons { get; set; }
     public bool IsRecommended { get; set; }
+    public DateTime CreatedAt { get; set; }
 }

@@ -1256,6 +1256,139 @@ Sen Türkiye'deki hibe ve teşvik programları konusunda uzman bir danışman ya
     }
 
     /// <summary>
+    /// Verilen problem için pazar büyüklüğünü (TAM/SAM/SOM) hesaplar.
+    /// </summary>
+    public async Task<MarketSizeResult> CalculateMarketSizeAsync(string title, string description, string? sector)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        var prompt = $@"Aşağıdaki problem/ürün fikri için pazar büyüklüğü analizi yap. TAM, SAM ve SOM değerlerini hesapla. Yanıtı mutlaka JSON formatında döndür. JSON formatı şu alanları içermelidir:
+- TAM (Total Addressable Market — toplam pazar büyüklüğü, parasal değer, Türkçe)
+- SAM (Serviceable Addressable Market — hizmet verilebilir pazar, parasal değer, Türkçe)
+- SOM (Serviceable Obtainable Market — ele geçirilebilir pazar, parasal değer, Türkçe)
+- TAMDescription (TAM açıklaması, Türkçe)
+- SAMDescription (SAM açıklaması, Türkçe)
+- SOMDescription (SOM açıklaması, Türkçe)
+- GrowthRate (Pazarın yıllık büyüme oranı, Türkçe)
+- KeyAssumptions (Hesaplamadaki temel varsayımlar, Türkçe)
+- DataSources (Kullanılan/önerilen veri kaynakları, Türkçe)
+
+Problem Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+{{
+  ""TAM"": ""..."", ""SAM"": ""..."", ""SOM"": ""..."",
+  ""TAMDescription"": ""..."", ""SAMDescription"": ""..."", ""SOMDescription"": ""..."",
+  ""GrowthRate"": ""..."", ""KeyAssumptions"": ""..."", ""DataSources"": ""...""
+}}
+
+Sen deneyimli bir pazar araştırması analisti yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        jsonText = CleanJsonText(jsonText);
+        // Bazı alanlar (KeyAssumptions, DataSources vb.) dizi olarak gelebilir; güvenli string dönüşümü uyguluyoruz
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new FlexibleStringJsonConverter());
+        var result = JsonSerializer.Deserialize<MarketSizeResult>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Verilen problem için Business Model Canvas 9 bloğunu üretir.
+    /// </summary>
+    public async Task<BusinessCanvasResult> GenerateBusinessCanvasAsync(string title, string description, string? sector, string? solutionType)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        var prompt = $@"Aşağıdaki problem/ürün fikri için Business Model Canvas'ın 9 bloğunu doldur. Yanıtı mutlaka JSON formatında döndür. JSON şu alanları içermelidir (her biri Türkçe):
+- KeyPartners (Kilit Ortaklar)
+- KeyActivities (Kilit Faaliyetler)
+- KeyResources (Kilit Kaynaklar)
+- ValuePropositions (Değer Önerileri)
+- CustomerRelationships (Müşteri İlişkileri)
+- Channels (Kanallar)
+- CustomerSegments (Müşteri Segmentleri)
+- CostStructure (Maliyet Yapısı)
+- RevenueStreams (Gelir Akışları)
+
+Problem Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+Çözüm Tipi: {solutionType ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+{{
+  ""KeyPartners"": ""..."", ""KeyActivities"": ""..."", ""KeyResources"": ""..."",
+  ""ValuePropositions"": ""..."", ""CustomerRelationships"": ""..."", ""Channels"": ""..."",
+  ""CustomerSegments"": ""..."", ""CostStructure"": ""..."", ""RevenueStreams"": ""...""
+}}
+
+Sen deneyimli bir iş modeli stratejisti yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        jsonText = CleanJsonText(jsonText);
+        // Bazı bloklar (KeyPartners, KeyActivities vb.) dizi olarak gelebilir; güvenli string dönüşümü uyguluyoruz
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new FlexibleStringJsonConverter());
+        var result = JsonSerializer.Deserialize<BusinessCanvasResult>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Yapay zeka çıktısını markdown kod bloğu işaretlerinden temizleyip saf JSON haline getirir.
     /// </summary>
     private static string CleanJsonText(string jsonText)

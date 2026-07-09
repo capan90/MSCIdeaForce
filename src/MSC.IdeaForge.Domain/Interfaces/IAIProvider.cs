@@ -77,4 +77,14 @@ public interface IAIProvider
     /// Verilen problem/proje için Türkiye'deki uygun hibe, destek ve teşvik programlarını bulur.
     /// </summary>
     Task<List<Grant>> FindGrantsAsync(string title, string description, string? sector);
+
+    /// <summary>
+    /// Verilen problem için pazar büyüklüğünü (TAM/SAM/SOM) hesaplar.
+    /// </summary>
+    Task<MarketSizeResult> CalculateMarketSizeAsync(string title, string description, string? sector);
+
+    /// <summary>
+    /// Verilen problem için Business Model Canvas 9 bloğunu üretir.
+    /// </summary>
+    Task<BusinessCanvasResult> GenerateBusinessCanvasAsync(string title, string description, string? sector, string? solutionType);
 }

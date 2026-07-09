@@ -207,4 +207,14 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
     {
         throw new NotImplementedException();
     }
+
+    public Task<MarketSizeResult> CalculateMarketSizeAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<BusinessCanvasResult> GenerateBusinessCanvasAsync(string title, string description, string? sector, string? solutionType)
+    {
+        throw new NotImplementedException();
+    }
 }

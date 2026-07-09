@@ -33,7 +33,8 @@ public class GetSolutionsByProblemHandler
             EstimatedCost = s.EstimatedCost,
             Pros = s.Pros,
             Cons = s.Cons,
-            IsRecommended = s.IsRecommended
+            IsRecommended = s.IsRecommended,
+            CreatedAt = s.CreatedAt
         });
     }
 }

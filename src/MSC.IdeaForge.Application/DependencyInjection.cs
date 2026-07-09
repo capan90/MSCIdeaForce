@@ -35,6 +35,8 @@ using MSC.IdeaForge.Application.InvestorBriefs.Queries;
 using MSC.IdeaForge.Application.ProblemNotes.Commands;
 using MSC.IdeaForge.Application.ProblemNotes.Queries;
 using MSC.IdeaForge.Application.Search;
+using MSC.IdeaForge.Application.BusinessCanvases.Commands;
+using MSC.IdeaForge.Application.BusinessCanvases.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -142,6 +144,11 @@ public static class DependencyInjection
 
         // Sistem geneli arama işleyicisi
         services.AddScoped<GlobalSearchHandler>();
+
+        // Business Model Canvas işleyicileri
+        services.AddScoped<GenerateBusinessCanvasHandler>();
+        services.AddScoped<SaveBusinessCanvasHandler>();
+        services.AddScoped<GetBusinessCanvasHandler>();
 
         return services;
     }
