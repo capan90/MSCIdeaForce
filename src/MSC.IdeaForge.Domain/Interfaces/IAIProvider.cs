@@ -61,4 +61,10 @@ public interface IAIProvider
     /// </summary>
     /// <returns>Doğrulama sorularını içeren metin listesi döner.</returns>
     Task<List<string>> GenerateValidationQuestionsAsync(string title, string description);
+
+    /// <summary>
+    /// Verilen problem için detaylı rakip analizi yapar.
+    /// </summary>
+    /// <returns>Her rakibi ve rekabet avantajlarını içeren Competitor listesi döner.</returns>
+    Task<List<Competitor>> AnalyzeCompetitorsAsync(string title, string description, string? sector);
 }

@@ -163,12 +163,13 @@
                             <th style="width: 5%;" class="text-center">
                                 <input type="checkbox" @onchange="ToggleSelectAll" checked="@IsAllSelected" />
                             </th>
-                            <th style="width: 35%;">Problem Başlığı</th>
-                            <th style="width: 12%;">Sektör</th>
-                            <th style="width: 12%;">Durum</th>
-                            <th style="width: 12%;">Öncelik</th>
-                            <th style="width: 12%;" class="text-center">Fırsat Skoru</th>
-                            <th style="width: 12%;">Eklenme Tarihi</th>
+                            <th style="width: 28%;">Problem Başlığı</th>
+                            <th style="width: 11%;">Sektör</th>
+                            <th style="width: 11%;">Durum</th>
+                            <th style="width: 11%;">Öncelik</th>
+                            <th style="width: 11%;" class="text-center">Fırsat Skoru</th>
+                            <th style="width: 10%;">Eklenme Tarihi</th>
+                            <th style="width: 13%;" class="text-center">Hızlı Analiz</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -214,7 +215,39 @@
                                 <td class="font-mono text-muted small">
                                     @p.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd")
                                 </td>
+                                <td class="text-center">
+                                    @if (quickAnalyzingProblemId == p.Id)
+                                    {
+                                        <button class="btn btn-outline-primary btn-sm py-0 px-2" disabled>
+                                            <span class="spinner-border spinner-border-sm" role="status" style="width: 0.8rem; height: 0.8rem;"></span>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-primary btn-sm py-0 px-2" style="font-size: 0.78rem;"
+                                                @onclick="() => RunQuickAnalysis(p.Id)" disabled="@(quickAnalyzingProblemId is not null)">
+                                            ▶ Hızlı Analiz
+                                        </button>
+                                    }
+                                </td>
                             </tr>
+
+                            @* Hızlı analiz sırasında satır altında ilerleme göster *@
+                            @if (quickAnalyzingProblemId == p.Id && quickAnalysisProgress is not null)
+                            {
+                                <tr>
+                                    <td colspan="8" class="bg-light">
+                                        <div class="d-flex flex-wrap gap-2 py-2 px-1">
+                                            @foreach (var step in quickAnalysisProgress)
+                                            {
+                                                <span class="badge d-flex align-items-center gap-1 @GetStepBadgeClass(step.Status)" style="font-size: 0.72rem;">
+                                                    @GetStepIcon(step.Status) @step.Step
+                                                </span>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
                         }
                     </tbody>
                 </table>
@@ -247,6 +280,10 @@
     private int bulkProgressCurrent = 0;
     private int bulkProgressTotal = 0;
     private string bulkMessage = "";
+
+    // Satır bazlı Hızlı Analiz State
+    private Guid? quickAnalyzingProblemId;
+    private List<AgentProgress>? quickAnalysisProgress;
 
     protected override async Task OnInitializedAsync()
     {
@@ -501,5 +538,58 @@
         >= 8 => "bg-success",
         >= 6 => "bg-warning",
         _ => "bg-danger"
+    };
+
+    /// <summary>
+    /// Tek bir problem için tüm AI Ajan Koordinatör analizini çalıştırır ve ilerlemeyi satır altında canlı gösterir.
+    /// </summary>
+    private async Task RunQuickAnalysis(Guid problemId)
+    {
+        if (quickAnalyzingProblemId is not null) return;
+
+        quickAnalyzingProblemId = problemId;
+        quickAnalysisProgress = null;
+        StateHasChanged();
+
+        try
+        {
+            // Her adım güncellemesinde arayüzü yeniliyoruz
+            await AgentCoordinator.RunFullAnalysisAsync(problemId, steps =>
+            {
+                quickAnalysisProgress = steps.ToList();
+                InvokeAsync(StateHasChanged);
+            });
+
+            // Skorların güncellenmesi için problemleri yeniden yüklüyoruz
+            await LoadProblems();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Hızlı analiz hatası (ProblemId: {problemId}): {ex.Message}");
+        }
+        finally
+        {
+            quickAnalyzingProblemId = null;
+            quickAnalysisProgress = null;
+            StateHasChanged();
+        }
+    }
+
+    // Koordinatör adım durumuna göre rozet rengi
+    private string GetStepBadgeClass(AgentStepStatus status) => status switch
+    {
+        AgentStepStatus.Completed => "bg-success",
+        AgentStepStatus.Running => "bg-primary",
+        AgentStepStatus.Failed => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    // Koordinatör adım durumuna göre ikon
+    private string GetStepIcon(AgentStepStatus status) => status switch
+    {
+        AgentStepStatus.Completed => "✅",
+        AgentStepStatus.Running => "⏳",
+        AgentStepStatus.Failed => "⚠️",
+        _ => "•"
     };
 }

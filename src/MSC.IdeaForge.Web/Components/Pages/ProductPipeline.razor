@@ -1,0 +1,115 @@
+@page "/product-pipeline"
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Application.Problems.DTOs
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject MSC.IdeaForge.Application.Opportunities.Queries.GetOpportunityByProblemHandler GetOpportunityByProblemHandler
+@inject NavigationManager NavigationManager
+
+<PageTitle>Ürün Pipeline</PageTitle>
+
+<div class="container-fluid mt-4" style="max-width: 1400px;">
+    @* Sayfa Başlığı *@
+    <div class="mb-4">
+        <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Ürün Pipeline (Kanban)</h1>
+        <p class="text-muted mb-0">Problemleri durumlarına göre kanban panosunda takip edin. Bir karta tıklayarak detayına gidin.</p>
+    </div>
+
+    @if (problems is null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Pipeline yükleniyor...</p>
+        </div>
+    }
+    else
+    {
+        @* Kanban sütunları — yatay kaydırılabilir *@
+        <div class="d-flex gap-3 pb-3" style="overflow-x: auto;">
+            @foreach (var column in columns)
+            {
+                var columnProblems = FilteredByStatus(column.Status);
+                <div style="min-width: 280px; flex: 1 0 280px;">
+                    <div class="card border-0 shadow-sm h-100" style="border-radius: 12px; background-color: #f8f9fc;">
+                        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center" style="border-radius: 12px 12px 0 0; border-top: 4px solid @column.Color !important;">
+                            <h6 class="m-0 font-weight-bold text-dark">@column.Title</h6>
+                            <span class="badge rounded-pill" style="background-color: @column.Color; color: #fff;">@columnProblems.Count</span>
+                        </div>
+                        <div class="card-body p-2 d-flex flex-column gap-2" style="max-height: 70vh; overflow-y: auto;">
+                            @if (!columnProblems.Any())
+                            {
+                                <div class="text-muted small text-center py-3 italic">Bu durumda problem yok.</div>
+                            }
+                            else
+                            {
+                                @foreach (var p in columnProblems)
+                                {
+                                    <div class="card border-0 shadow-sm" role="button" style="border-radius: 8px; border-left: 3px solid @column.Color !important;"
+                                         @onclick="() => NavigateToProblem(p.Id)">
+                                        <div class="card-body p-2.5">
+                                            <h6 class="font-weight-bold text-dark mb-2 small" style="line-height: 1.3;">@p.Title</h6>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
+                                                    @(string.IsNullOrEmpty(p.Sector) ? "-" : p.Sector)
+                                                </span>
+                                                @if (opportunityScores.TryGetValue(p.Id, out var score) && score > 0)
+                                                {
+                                                    <span class="badge @GetScoreBadgeClass(score) text-white" style="font-size: 0.7rem;">
+                                                        @score.ToString("0.0")
+                                                    </span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<ProblemDto>? problems;
+    private Dictionary<Guid, double> opportunityScores = new();
+
+    // Kanban sütun tanımları (durum kodu → görünen ad + renk)
+    private readonly (string Status, string Title, string Color)[] columns = new[]
+    {
+        ("Draft", "Taslak", "#6c757d"),
+        ("Discovered", "Keşfedildi", "#0dcaf0"),
+        ("Analyzed", "Analiz Edildi", "#0d6efd"),
+        ("Validated", "Doğrulandı", "#198754"),
+        ("Archived", "Arşivlendi", "#343a40")
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        problems = await GetProblemsHandler.HandleAsync();
+
+        // Fırsat skorlarını client-side olarak topluyoruz
+        opportunityScores.Clear();
+        foreach (var p in problems)
+        {
+            var opp = await GetOpportunityByProblemHandler.HandleAsync(p.Id);
+            opportunityScores[p.Id] = opp?.TotalScore ?? 0;
+        }
+    }
+
+    /// <summary>
+    /// Belirtilen duruma ait problemleri client-side filtreler.
+    /// </summary>
+    private List<ProblemDto> FilteredByStatus(string status)
+        => problems?.Where(p => p.Status == status).ToList() ?? new();
+
+    private void NavigateToProblem(Guid id) => NavigationManager.NavigateTo($"/problems/{id}");
+
+    // Fırsat skoruna göre renk: 8-10 yeşil, 6-7.9 sarı, 0-5.9 kırmızı
+    private string GetScoreBadgeClass(double score) => score switch
+    {
+        >= 8 => "bg-success",
+        >= 6 => "bg-warning",
+        _ => "bg-danger"
+    };
+}

@@ -26,6 +26,8 @@ using MSC.IdeaForge.Application.Revenues.Commands;
 using MSC.IdeaForge.Application.Revenues.Queries;
 using MSC.IdeaForge.Application.FounderProfiles.Commands;
 using MSC.IdeaForge.Application.FounderProfiles.Queries;
+using MSC.IdeaForge.Application.CompetitorAnalyses.Commands;
+using MSC.IdeaForge.Application.CompetitorAnalyses.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -112,6 +114,10 @@ public static class DependencyInjection
         // Kurucu Profili işleyicileri
         services.AddScoped<SaveFounderProfileHandler>();
         services.AddScoped<GetFounderProfileHandler>();
+
+        // Rakip Analizi işleyicileri
+        services.AddScoped<AnalyzeCompetitorsHandler>();
+        services.AddScoped<GetCompetitorAnalysisHandler>();
 
         return services;
     }

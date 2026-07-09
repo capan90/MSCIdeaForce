@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<TrendAnalysis> TrendAnalyses => Set<TrendAnalysis>();
     public DbSet<RevenueAnalysis> RevenueAnalyses => Set<RevenueAnalysis>();
     public DbSet<FounderProfile> FounderProfiles => Set<FounderProfile>();
+    public DbSet<CompetitorAnalysis> CompetitorAnalyses => Set<CompetitorAnalysis>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -121,6 +122,12 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<CompetitorAnalysis>(entity =>
+        {
+            entity.HasKey(e => e.Id);
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }

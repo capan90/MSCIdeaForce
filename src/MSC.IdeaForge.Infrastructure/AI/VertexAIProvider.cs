@@ -213,4 +213,9 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
     {
         throw new NotImplementedException();
     }
+
+    public Task<List<Competitor>> AnalyzeCompetitorsAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
 }

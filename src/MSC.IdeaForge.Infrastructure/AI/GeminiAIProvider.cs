@@ -1001,6 +1001,97 @@ Sen profesyonel bir müşteri geliştirme (customer development) uzmanı yapay z
     }
 
     /// <summary>
+    /// Verilen problem için detaylı rakip analizi yapar.
+    /// </summary>
+    public async Task<List<Competitor>> AnalyzeCompetitorsAsync(string title, string description, string? sector)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        // API Key kontrolü
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        // Gemini promptunu hazırlıyoruz
+        var prompt = $@"Aşağıdaki problem/ürün fikri için detaylı bir rakip analizi yap. Olası doğrudan ve dolaylı rakipleri bul.
+Yanıtı mutlaka JSON formatında döndür. Yanıt, bir JSON array olmalıdır. Her eleman şu alanları içermelidir:
+- Name (Rakibin adı)
+- Strengths (Güçlü yönleri, Türkçe)
+- Weaknesses (Zayıf yönleri, Türkçe)
+- Pricing (Fiyatlandırma modeli / seviyesi, Türkçe)
+- MarketShare (Tahmini pazar payı / pazardaki konumu, Türkçe)
+- OurAdvantage (Bizim bu rakibe karşı olası rekabet avantajımız, Türkçe)
+
+Problem Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+[
+  {{
+    ""Name"": ""Rakip adı"",
+    ""Strengths"": ""güçlü yönler"",
+    ""Weaknesses"": ""zayıf yönler"",
+    ""Pricing"": ""fiyatlandırma"",
+    ""MarketShare"": ""pazar payı"",
+    ""OurAdvantage"": ""bizim avantajımız""
+  }}
+]
+
+Sen profesyonel bir rekabet istihbaratı (competitive intelligence) analisti yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON array döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    parts = new[]
+                    {
+                        new { text = prompt }
+                    }
+                }
+            }
+        };
+
+        // HTTP POST isteği gönderiyoruz
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(
+            requestUrl,
+            requestBody
+        );
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        jsonText = CleanJsonText(jsonText);
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        var result = JsonSerializer.Deserialize<List<Competitor>>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Yapay zeka çıktısını markdown kod bloğu işaretlerinden temizleyip saf JSON haline getirir.
     /// </summary>
     private static string CleanJsonText(string jsonText)

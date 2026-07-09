@@ -192,4 +192,9 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
     {
         throw new NotImplementedException();
     }
+
+    public Task<List<Competitor>> AnalyzeCompetitorsAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
 }

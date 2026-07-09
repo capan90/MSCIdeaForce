@@ -10,6 +10,7 @@ using MSC.IdeaForge.Application.Solutions.Commands;
 using MSC.IdeaForge.Application.MVPPlans.Commands;
 using MSC.IdeaForge.Application.Revenues.Commands;
 using MSC.IdeaForge.Application.Validations.Commands;
+using MSC.IdeaForge.Application.CompetitorAnalyses.Commands;
 using MSC.IdeaForge.Domain.Interfaces;
 
 namespace MSC.IdeaForge.Application.Agents;
@@ -28,6 +29,7 @@ public class AgentCoordinator
     private readonly GenerateMVPPlanHandler _generateMVPPlanHandler;
     private readonly AnalyzeRevenueHandler _analyzeRevenueHandler;
     private readonly GenerateValidationQuestionsHandler _generateValidationQuestionsHandler;
+    private readonly AnalyzeCompetitorsHandler _analyzeCompetitorsHandler;
 
     public AgentCoordinator(
         AnalyzeProblemHandler analyzeProblemHandler,
@@ -38,7 +40,8 @@ public class AgentCoordinator
         ISolutionRepository solutionRepository,
         GenerateMVPPlanHandler generateMVPPlanHandler,
         AnalyzeRevenueHandler analyzeRevenueHandler,
-        GenerateValidationQuestionsHandler generateValidationQuestionsHandler)
+        GenerateValidationQuestionsHandler generateValidationQuestionsHandler,
+        AnalyzeCompetitorsHandler analyzeCompetitorsHandler)
     {
         _analyzeProblemHandler = analyzeProblemHandler;
         _aiResearchHandler = aiResearchHandler;
@@ -49,6 +52,7 @@ public class AgentCoordinator
         _generateMVPPlanHandler = generateMVPPlanHandler;
         _analyzeRevenueHandler = analyzeRevenueHandler;
         _generateValidationQuestionsHandler = generateValidationQuestionsHandler;
+        _analyzeCompetitorsHandler = analyzeCompetitorsHandler;
     }
 
     /// <summary>
@@ -65,7 +69,8 @@ public class AgentCoordinator
             new() { Step = "Çözüm Önerisi", Status = AgentStepStatus.Pending },
             new() { Step = "MVP Planı", Status = AgentStepStatus.Pending },
             new() { Step = "Gelir Analizi", Status = AgentStepStatus.Pending },
-            new() { Step = "Doğrulama Soruları", Status = AgentStepStatus.Pending }
+            new() { Step = "Doğrulama Soruları", Status = AgentStepStatus.Pending },
+            new() { Step = "Rakip Analizi", Status = AgentStepStatus.Pending }
         };
 
         void ReportProgress(int stepIndex, AgentStepStatus status, string? errorMessage = null)
@@ -192,6 +197,21 @@ public class AgentCoordinator
         catch (Exception ex)
         {
             ReportProgress(6, AgentStepStatus.Failed, ex.Message);
+        }
+
+        // --- 8. RAKİP ANALİZİ ---
+        ReportProgress(7, AgentStepStatus.Running);
+        try
+        {
+            await _analyzeCompetitorsHandler.HandleAsync(new AnalyzeCompetitorsCommand
+            {
+                ProblemId = problemId
+            }, cancellationToken);
+            ReportProgress(7, AgentStepStatus.Completed);
+        }
+        catch (Exception ex)
+        {
+            ReportProgress(7, AgentStepStatus.Failed, ex.Message);
         }
 
         return steps;
