@@ -1571,6 +1571,262 @@ Eğer bağlantılı problem yoksa boş bir array döndür. Sen bir problem iliş
     }
 
     /// <summary>
+    /// Verilen ürün için detaylı fiyatlandırma stratejisi oluşturur.
+    /// </summary>
+    public async Task<PricingStrategyResult> GeneratePricingStrategyAsync(string title, string description, string? sector, string? solutionType, string? targetCustomer)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        var prompt = $@"Aşağıdaki ürün/proje için detaylı bir fiyatlandırma stratejisi oluştur. Yanıtı mutlaka JSON formatında döndür. JSON şu alanları içermelidir (metinler Türkçe):
+- RecommendedModel (Önerilen fiyatlandırma modeli)
+- PricingTiers (Fiyatlandırma kademeleri dizisi; her eleman: TierName, Price, Features, TargetSegment)
+- FreeTrialStrategy (Ücretsiz deneme stratejisi)
+- DiscountStrategy (İndirim stratejisi)
+- CompetitorPricing (Rakip fiyatlandırma değerlendirmesi)
+- PsychologicalPricingTips (Psikolojik fiyatlandırma ipuçları)
+- RevenueProjection (Gelir projeksiyonu)
+
+Ürün Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+Çözüm Tipi: {solutionType ?? "Belirtilmemiş"}
+Hedef Müşteri: {targetCustomer ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+{{
+  ""RecommendedModel"": ""..."",
+  ""PricingTiers"": [ {{ ""TierName"": ""..."", ""Price"": ""..."", ""Features"": ""..."", ""TargetSegment"": ""..."" }} ],
+  ""FreeTrialStrategy"": ""..."", ""DiscountStrategy"": ""..."", ""CompetitorPricing"": ""..."",
+  ""PsychologicalPricingTips"": ""..."", ""RevenueProjection"": ""...""
+}}
+
+Sen deneyimli bir fiyatlandırma stratejisti yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        jsonText = CleanJsonText(jsonText);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new FlexibleStringJsonConverter());
+        var result = JsonSerializer.Deserialize<PricingStrategyResult>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Verilen proje için kapsamlı bir risk analizi (risk matrisi) üretir.
+    /// </summary>
+    public async Task<List<RiskItemSuggestion>> GenerateRiskMatrixAsync(string title, string description, string? sector)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        var prompt = $@"Aşağıdaki proje için kapsamlı bir risk analizi yap. Yanıtı mutlaka JSON formatında döndür. Yanıt bir JSON array olmalıdır. Her eleman şu alanları içermelidir:
+- RiskName (Riskin adı, Türkçe)
+- Category (Şu değerlerden biri: Teknik, Pazar, Finansal, Operasyonel, Hukuki, Rekabet)
+- Probability (Olasılık, 1-5 arası tamsayı)
+- Impact (Etki, 1-5 arası tamsayı)
+- RiskScore (Probability * Impact değeri, tamsayı)
+- MitigationStrategy (Azaltma stratejisi, Türkçe)
+- Owner (Sorumlu rol/kişi, Türkçe)
+- Status (Şu değerlerden biri: Açık, İzleniyor, Azaltıldı, Kapalı)
+
+Proje Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+[
+  {{ ""RiskName"": ""..."", ""Category"": ""Teknik"", ""Probability"": 3, ""Impact"": 4, ""RiskScore"": 12, ""MitigationStrategy"": ""..."", ""Owner"": ""..."", ""Status"": ""Açık"" }}
+]
+
+Sen deneyimli bir risk yönetimi analisti yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON array döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        jsonText = CleanJsonText(jsonText);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new FlexibleStringJsonConverter());
+        var result = JsonSerializer.Deserialize<List<RiskItemSuggestion>>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Verilen problem için 2-3 hedef müşteri personası oluşturur.
+    /// </summary>
+    public async Task<List<CustomerPersona>> GenerateCustomerPersonaAsync(string title, string description, string? sector)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        var prompt = $@"Aşağıdaki problem için 2-3 hedef müşteri personası oluştur. Yanıtı mutlaka JSON formatında döndür. Yanıt bir JSON array olmalıdır. Her eleman şu alanları içermelidir (metinler Türkçe):
+- Name (Persona adı)
+- Age (Yaş veya yaş aralığı)
+- Occupation (Meslek)
+- Location (Konum)
+- Income (Gelir seviyesi)
+- Goals (Hedefler)
+- Frustrations (Hayal kırıklıkları / engeller)
+- Motivations (Motivasyonlar)
+- TechSavviness (Teknoloji kullanım seviyesi, 1-5 arası tamsayı)
+- BuyingBehavior (Satın alma davranışı)
+- PreferredChannels (Tercih edilen kanallar)
+- Quote (Personayı özetleyen kısa bir alıntı)
+
+Problem Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+[
+  {{ ""Name"": ""..."", ""Age"": ""..."", ""Occupation"": ""..."", ""Location"": ""..."", ""Income"": ""..."", ""Goals"": ""..."", ""Frustrations"": ""..."", ""Motivations"": ""..."", ""TechSavviness"": 4, ""BuyingBehavior"": ""..."", ""PreferredChannels"": ""..."", ""Quote"": ""..."" }}
+]
+
+Sen deneyimli bir kullanıcı araştırması (UX research) uzmanı yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON array döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        jsonText = CleanJsonText(jsonText);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new FlexibleStringJsonConverter());
+        var result = JsonSerializer.Deserialize<List<CustomerPersona>>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Verilen problem için 30-60-90 günlük aksiyon planı oluşturur.
+    /// </summary>
+    public async Task<ActionPlanResult> GenerateActionPlanAsync(string title, string description, string? sector, string? solutionType)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        var prompt = $@"Aşağıdaki problem için 30-60-90 günlük bir aksiyon planı oluştur. Yanıtı mutlaka JSON formatında döndür. JSON şu alanları içermelidir (metinler Türkçe):
+- Day30, Day60, Day90 (her biri bir aksiyon dizisi; her aksiyon: Action, Owner, Priority, Description)
+- SuccessMetrics (başarı metrikleri, string dizisi)
+- QuickWins (hızlı kazanımlar, string dizisi)
+
+Problem Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+Çözüm Tipi: {solutionType ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+{{
+  ""Day30"": [ {{ ""Action"": ""..."", ""Owner"": ""..."", ""Priority"": ""Yüksek"", ""Description"": ""..."" }} ],
+  ""Day60"": [ {{ ""Action"": ""..."", ""Owner"": ""..."", ""Priority"": ""Orta"", ""Description"": ""..."" }} ],
+  ""Day90"": [ {{ ""Action"": ""..."", ""Owner"": ""..."", ""Priority"": ""Düşük"", ""Description"": ""..."" }} ],
+  ""SuccessMetrics"": [ ""..."" ],
+  ""QuickWins"": [ ""..."" ]
+}}
+
+Sen deneyimli bir girişim operasyon danışmanı yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        jsonText = CleanJsonText(jsonText);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new FlexibleStringJsonConverter());
+        var result = JsonSerializer.Deserialize<ActionPlanResult>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Yapay zeka çıktısını markdown kod bloğu işaretlerinden temizleyip saf JSON haline getirir.
     /// </summary>
     private static string CleanJsonText(string jsonText)

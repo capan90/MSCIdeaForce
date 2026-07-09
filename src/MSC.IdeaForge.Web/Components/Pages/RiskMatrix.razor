@@ -1,0 +1,253 @@
+@page "/risk-matrix"
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Domain.Interfaces
+@using MSC.IdeaForge.Application.Risks.DTOs
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject IAIProvider AIProvider
+@inject MSC.IdeaForge.Application.Risks.Commands.SaveRiskHandler SaveRiskHandler
+@inject MSC.IdeaForge.Application.Risks.Queries.GetRisksHandler GetRisksHandler
+
+<PageTitle>Risk Matrisi</PageTitle>
+
+<div class="container mt-4" style="max-width: 1100px;">
+    <div class="mb-4">
+        <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Risk Matrisi</h1>
+        <p class="text-muted mb-0">Seçilen proje için yapay zeka ile risk analizi yapın ve 5x5 risk matrisinde görün.</p>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0 !important;">
+        <div class="card-body p-3">
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="alert @(isError ? "alert-danger" : "alert-success") py-2 mb-3 small">@message</div>
+            }
+            <div class="row g-2 align-items-end">
+                <div class="col-md-7">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Problem Seçin</label>
+                    <select class="form-select form-select-sm" value="@selectedProblemId" @onchange="OnProblemSelected">
+                        <option value="">-- Problem seçin --</option>
+                        @if (problems is not null)
+                        {
+                            @foreach (var p in problems)
+                            {
+                                <option value="@p.Id">@p.Title</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-5 d-flex gap-2">
+                    @if (isAnalyzing)
+                    {
+                        <button class="btn btn-primary btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-2" disabled>
+                            <span class="spinner-border spinner-border-sm" role="status"></span> Analiz ediliyor...
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary btn-sm flex-grow-1" @onclick="Analyze" disabled="@(selectedProblemId == Guid.Empty)">🤖 AI ile Risk Analizi Yap</button>
+                    }
+                    <button class="btn btn-success btn-sm" @onclick="Save" disabled="@(risks.Count == 0 || isSaving)">💾 Kaydet</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (risks.Any())
+    {
+        @* 5x5 Risk Matrisi (CSS grid) *@
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; border: 1px solid #e3e6f0;">
+            <div class="card-body p-3">
+                <h6 class="font-weight-bold text-dark mb-3">Risk Matrisi (Etki × Olasılık)</h6>
+                <div style="overflow-x: auto;">
+                    <div style="display: grid; grid-template-columns: 70px repeat(5, minmax(70px, 1fr)); gap: 3px; min-width: 480px;">
+                        @* Üst köşe boş + Olasılık başlıkları *@
+                        <div></div>
+                        @for (int p = 1; p <= 5; p++)
+                        {
+                            <div class="text-center small font-weight-bold text-muted">Ol. @p</div>
+                        }
+                        @* Satırlar: Etki 5 → 1 *@
+                        @for (int i = 5; i >= 1; i--)
+                        {
+                            var impact = i;
+                            <div class="d-flex align-items-center justify-content-center small font-weight-bold text-muted">Etki @impact</div>
+                            @for (int p = 1; p <= 5; p++)
+                            {
+                                var prob = p;
+                                var score = prob * impact;
+                                var count = risks.Count(r => r.Probability == prob && r.Impact == impact);
+                                <div class="d-flex align-items-center justify-content-center text-white font-weight-bold"
+                                     style="background-color: @GetCellColor(score); min-height: 48px; border-radius: 4px; opacity: @(count > 0 ? "1" : "0.55");"
+                                     title="Skor: @score">
+                                    @if (count > 0)
+                                    {
+                                        <span>@count</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="small" style="opacity: 0.6;">@score</span>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+                <div class="d-flex gap-3 mt-2 small text-muted">
+                    <span><span class="badge" style="background-color:#198754;">&nbsp;</span> Düşük (1-4)</span>
+                    <span><span class="badge" style="background-color:#f6c23e;">&nbsp;</span> Orta (5-9)</span>
+                    <span><span class="badge" style="background-color:#dc3545;">&nbsp;</span> Yüksek (10-25)</span>
+                </div>
+            </div>
+        </div>
+
+        @* Risk listesi tablosu *@
+        <div class="card shadow-sm border-0" style="border-radius: 12px; border: 1px solid #e3e6f0;">
+            <div class="card-body p-0" style="overflow-x: auto;">
+                <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.85rem;">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-3">Risk</th>
+                            <th>Kategori</th>
+                            <th class="text-center">Olasılık</th>
+                            <th class="text-center">Etki</th>
+                            <th class="text-center">Skor</th>
+                            <th>Azaltma Stratejisi</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in risks.OrderByDescending(r => r.RiskScore))
+                        {
+                            <tr>
+                                <td class="ps-3 font-weight-bold text-dark">@r.RiskName</td>
+                                <td><span class="badge bg-secondary">@r.Category</span></td>
+                                <td class="text-center">@r.Probability</td>
+                                <td class="text-center">@r.Impact</td>
+                                <td class="text-center"><span class="badge text-white" style="background-color: @GetCellColor(r.RiskScore);">@r.RiskScore</span></td>
+                                <td class="small text-muted">@r.MitigationStrategy</td>
+                                <td><span class="badge bg-light text-dark border">@r.Status</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>? problems;
+    private Guid selectedProblemId = Guid.Empty;
+    private List<RiskDto> risks = new();
+    private bool isAnalyzing = false;
+    private bool isSaving = false;
+    private string message = "";
+    private bool isError = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        problems = await GetProblemsHandler.HandleAsync();
+    }
+
+    private async Task OnProblemSelected(ChangeEventArgs e)
+    {
+        message = "";
+        risks = new();
+        if (Guid.TryParse(e.Value?.ToString(), out var id))
+        {
+            selectedProblemId = id;
+            risks = await GetRisksHandler.HandleAsync(id);
+        }
+        else
+        {
+            selectedProblemId = Guid.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Seçili proje için yapay zeka ile risk analizini çalıştırır (henüz kaydetmez).
+    /// </summary>
+    private async Task Analyze()
+    {
+        var problem = problems?.FirstOrDefault(p => p.Id == selectedProblemId);
+        if (problem is null) return;
+
+        message = "";
+        isAnalyzing = true;
+        StateHasChanged();
+        try
+        {
+            var suggestions = await AIProvider.GenerateRiskMatrixAsync(problem.Title, problem.Description, problem.Sector);
+            risks = suggestions.Select(s => new RiskDto
+            {
+                ProblemId = selectedProblemId,
+                RiskName = s.RiskName,
+                Category = s.Category,
+                Probability = s.Probability,
+                Impact = s.Impact,
+                RiskScore = s.Probability * s.Impact,
+                MitigationStrategy = s.MitigationStrategy,
+                Owner = s.Owner,
+                Status = string.IsNullOrWhiteSpace(s.Status) ? "Açık" : s.Status
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            message = $"Risk analizi sırasında bir hata oluştu: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isAnalyzing = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Mevcut risk listesini kaydeder.
+    /// </summary>
+    private async Task Save()
+    {
+        if (selectedProblemId == Guid.Empty || !risks.Any()) return;
+
+        isSaving = true;
+        message = "";
+        try
+        {
+            await SaveRiskHandler.HandleAsync(new MSC.IdeaForge.Application.Risks.Commands.SaveRiskCommand
+            {
+                ProblemId = selectedProblemId,
+                Risks = risks.Select(r => new MSC.IdeaForge.Application.Risks.Commands.RiskInput
+                {
+                    RiskName = r.RiskName,
+                    Category = r.Category,
+                    Probability = r.Probability,
+                    Impact = r.Impact,
+                    MitigationStrategy = r.MitigationStrategy,
+                    Owner = r.Owner,
+                    Status = r.Status
+                }).ToList()
+            });
+            message = "Riskler başarıyla kaydedildi ✓";
+            isError = false;
+            risks = await GetRisksHandler.HandleAsync(selectedProblemId);
+        }
+        catch (Exception ex)
+        {
+            message = $"Kaydetme sırasında bir hata oluştu: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    // Skora göre hücre rengi: 1-4 yeşil, 5-9 sarı, 10-25 kırmızı
+    private string GetCellColor(int score) => score switch
+    {
+        <= 4 => "#198754",
+        <= 9 => "#f6c23e",
+        _ => "#dc3545"
+    };
+}

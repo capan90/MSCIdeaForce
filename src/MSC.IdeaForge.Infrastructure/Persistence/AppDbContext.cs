@@ -27,6 +27,8 @@ public class AppDbContext : DbContext
     public DbSet<ProblemNote> ProblemNotes => Set<ProblemNote>();
     public DbSet<BusinessCanvas> BusinessCanvases => Set<BusinessCanvas>();
     public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
+    public DbSet<RiskItem> RiskItems => Set<RiskItem>();
+    public DbSet<ActionPlan> ActionPlans => Set<ActionPlan>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -168,6 +170,19 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<RiskItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RiskName).IsRequired().HasMaxLength(500);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<ActionPlan>(entity =>
+        {
+            entity.HasKey(e => e.Id);
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }

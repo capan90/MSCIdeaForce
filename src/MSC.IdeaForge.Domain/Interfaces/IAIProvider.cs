@@ -102,4 +102,24 @@ public interface IAIProvider
     /// Verilen problemle bağlantılı olabilecek diğer problemleri, mevcut problem başlıkları arasından bulur.
     /// </summary>
     Task<List<RelatedProblem>> FindRelatedProblemsAsync(string title, string description, List<string> allProblemTitles);
+
+    /// <summary>
+    /// Verilen ürün için detaylı fiyatlandırma stratejisi oluşturur.
+    /// </summary>
+    Task<PricingStrategyResult> GeneratePricingStrategyAsync(string title, string description, string? sector, string? solutionType, string? targetCustomer);
+
+    /// <summary>
+    /// Verilen proje için kapsamlı bir risk analizi (risk matrisi) üretir.
+    /// </summary>
+    Task<List<RiskItemSuggestion>> GenerateRiskMatrixAsync(string title, string description, string? sector);
+
+    /// <summary>
+    /// Verilen problem için 2-3 hedef müşteri personası oluşturur.
+    /// </summary>
+    Task<List<CustomerPersona>> GenerateCustomerPersonaAsync(string title, string description, string? sector);
+
+    /// <summary>
+    /// Verilen problem için 30-60-90 günlük aksiyon planı oluşturur.
+    /// </summary>
+    Task<ActionPlanResult> GenerateActionPlanAsync(string title, string description, string? sector, string? solutionType);
 }

@@ -1,0 +1,181 @@
+@page "/customer-persona"
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Domain.Interfaces
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject IAIProvider AIProvider
+
+<PageTitle>Müşteri Personası</PageTitle>
+
+<div class="container mt-4" style="max-width: 1100px;">
+    <div class="mb-4">
+        <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Müşteri Personası</h1>
+        <p class="text-muted mb-0">Seçilen problem için hedef müşteri personalarını yapay zeka ile oluşturun.</p>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0 !important;">
+        <div class="card-body p-3">
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger py-2 mb-3 small">@errorMessage</div>
+            }
+            <div class="row g-2 align-items-end">
+                <div class="col-md-9">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Problem Seçin</label>
+                    <select class="form-select form-select-sm" value="@selectedProblemId" @onchange="OnProblemSelected">
+                        <option value="">-- Problem seçin --</option>
+                        @if (problems is not null)
+                        {
+                            @foreach (var p in problems)
+                            {
+                                <option value="@p.Id">@p.Title</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    @if (isGenerating)
+                    {
+                        <button class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-2" disabled>
+                            <span class="spinner-border spinner-border-sm" role="status"></span> Oluşturuluyor...
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary btn-sm w-100" @onclick="Generate" disabled="@(selectedProblemId == Guid.Empty)">🤖 AI ile Persona Oluştur</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (personas is not null)
+    {
+        <div class="row g-3">
+            @foreach (var persona in personas)
+            {
+                <div class="col-md-6">
+                    <div class="card h-100 shadow-sm border-0" style="border-radius: 12px; border-top: 4px solid #6f42c1 !important;">
+                        <div class="card-body p-3">
+                            @* Avatar + isim *@
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <div class="d-flex align-items-center justify-content-center text-white font-weight-bold"
+                                     style="width: 52px; height: 52px; border-radius: 50%; background-color: #6f42c1; font-size: 1.1rem;">
+                                    @GetInitials(persona.Name)
+                                </div>
+                                <div>
+                                    <h5 class="font-weight-bold text-dark m-0">@persona.Name</h5>
+                                    <span class="text-muted small">@DisplayValue(persona.Occupation)</span>
+                                </div>
+                            </div>
+
+                            @* Demografik bilgiler *@
+                            <div class="row g-2 mb-3 small">
+                                <div class="col-6"><span class="text-muted">Yaş:</span> <span class="text-dark font-weight-bold">@DisplayValue(persona.Age)</span></div>
+                                <div class="col-6"><span class="text-muted">Konum:</span> <span class="text-dark font-weight-bold">@DisplayValue(persona.Location)</span></div>
+                                <div class="col-6"><span class="text-muted">Gelir:</span> <span class="text-dark font-weight-bold">@DisplayValue(persona.Income)</span></div>
+                                <div class="col-6">
+                                    <span class="text-muted">Teknoloji:</span>
+                                    <span class="text-warning">@GetStars(persona.TechSavviness)</span>
+                                </div>
+                            </div>
+
+                            @* Alıntı *@
+                            @if (!string.IsNullOrWhiteSpace(persona.Quote))
+                            {
+                                <div class="p-2 rounded mb-3" style="background-color: #faf5ff; border-left: 3px solid #6f42c1;">
+                                    <em class="text-dark small">"@persona.Quote"</em>
+                                </div>
+                            }
+
+                            <div class="mb-2">
+                                <span class="text-success small font-weight-bold d-block">🎯 Hedefler</span>
+                                <span class="text-dark small">@DisplayValue(persona.Goals)</span>
+                            </div>
+                            <div class="mb-2">
+                                <span class="text-danger small font-weight-bold d-block">😤 Hayal Kırıklıkları</span>
+                                <span class="text-dark small">@DisplayValue(persona.Frustrations)</span>
+                            </div>
+                            <div class="mb-2">
+                                <span class="text-primary small font-weight-bold d-block">🔥 Motivasyonlar</span>
+                                <span class="text-dark small">@DisplayValue(persona.Motivations)</span>
+                            </div>
+                            <div class="mb-2">
+                                <span class="text-muted small font-weight-bold d-block">🛒 Satın Alma Davranışı</span>
+                                <span class="text-dark small">@DisplayValue(persona.BuyingBehavior)</span>
+                            </div>
+                            <div>
+                                <span class="text-muted small font-weight-bold d-block">📱 Tercih Edilen Kanallar</span>
+                                <span class="text-dark small">@DisplayValue(persona.PreferredChannels)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>? problems;
+    private Guid selectedProblemId = Guid.Empty;
+    private List<MSC.IdeaForge.Domain.ValueObjects.CustomerPersona>? personas;
+    private bool isGenerating = false;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        problems = await GetProblemsHandler.HandleAsync();
+    }
+
+    private void OnProblemSelected(ChangeEventArgs e)
+    {
+        personas = null;
+        errorMessage = "";
+        selectedProblemId = Guid.TryParse(e.Value?.ToString(), out var id) ? id : Guid.Empty;
+    }
+
+    /// <summary>
+    /// Seçili problem için yapay zeka ile müşteri personaları üretir.
+    /// </summary>
+    private async Task Generate()
+    {
+        var problem = problems?.FirstOrDefault(p => p.Id == selectedProblemId);
+        if (problem is null) return;
+
+        errorMessage = "";
+        isGenerating = true;
+        personas = null;
+        StateHasChanged();
+        try
+        {
+            personas = await AIProvider.GenerateCustomerPersonaAsync(problem.Title, problem.Description, problem.Sector);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Persona oluşturulurken bir hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isGenerating = false;
+            StateHasChanged();
+        }
+    }
+
+    // İsimden baş harfleri (en fazla 2) üretir
+    private string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var initials = parts.Take(2).Select(p => char.ToUpper(p[0]));
+        return string.Concat(initials);
+    }
+
+    // Teknoloji seviyesini yıldızlarla gösterir (1-5)
+    private string GetStars(int level)
+    {
+        var clamped = Math.Clamp(level, 0, 5);
+        return new string('★', clamped) + new string('☆', 5 - clamped);
+    }
+
+    private static string DisplayValue(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+}

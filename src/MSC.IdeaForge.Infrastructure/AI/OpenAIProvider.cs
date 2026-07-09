@@ -232,4 +232,24 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
     {
         throw new NotImplementedException();
     }
+
+    public Task<PricingStrategyResult> GeneratePricingStrategyAsync(string title, string description, string? sector, string? solutionType, string? targetCustomer)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<RiskItemSuggestion>> GenerateRiskMatrixAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<CustomerPersona>> GenerateCustomerPersonaAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<ActionPlanResult> GenerateActionPlanAsync(string title, string description, string? sector, string? solutionType)
+    {
+        throw new NotImplementedException();
+    }
 }

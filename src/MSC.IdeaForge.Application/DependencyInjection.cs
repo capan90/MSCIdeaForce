@@ -39,6 +39,10 @@ using MSC.IdeaForge.Application.BusinessCanvases.Commands;
 using MSC.IdeaForge.Application.BusinessCanvases.Queries;
 using MSC.IdeaForge.Application.Checklists.Commands;
 using MSC.IdeaForge.Application.Checklists.Queries;
+using MSC.IdeaForge.Application.Risks.Commands;
+using MSC.IdeaForge.Application.Risks.Queries;
+using MSC.IdeaForge.Application.ActionPlans.Commands;
+using MSC.IdeaForge.Application.ActionPlans.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -157,6 +161,14 @@ public static class DependencyInjection
         services.AddScoped<UpdateChecklistItemHandler>();
         services.AddScoped<DeleteChecklistItemHandler>();
         services.AddScoped<GetChecklistItemsHandler>();
+
+        // Risk Matrisi işleyicileri
+        services.AddScoped<SaveRiskHandler>();
+        services.AddScoped<GetRisksHandler>();
+
+        // Aksiyon Planı işleyicileri
+        services.AddScoped<GenerateActionPlanHandler>();
+        services.AddScoped<GetActionPlanHandler>();
 
         return services;
     }

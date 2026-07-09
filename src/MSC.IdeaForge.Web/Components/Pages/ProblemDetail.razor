@@ -43,6 +43,8 @@
 @inject MSC.IdeaForge.Application.ProblemNotes.Queries.GetProblemNotesHandler GetProblemNotesHandler
 @inject MSC.IdeaForge.Domain.Interfaces.IAIProvider AIProvider
 @inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject MSC.IdeaForge.Application.ActionPlans.Commands.GenerateActionPlanHandler GenerateActionPlanHandler
+@inject MSC.IdeaForge.Application.ActionPlans.Queries.GetActionPlanHandler GetActionPlanHandler
 
 <PageTitle>Problem Detayı</PageTitle>
 
@@ -142,6 +144,9 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "notes" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("notes")'>Notlar (@(problemNotes?.Count ?? 0))</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "action_plan" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("action_plan")'>Aksiyon Planı</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "ai_analysis" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("ai_analysis")'>AI Analizi</button>
@@ -1191,6 +1196,91 @@
                 </div>
             </div>
         }
+        else if (activeTab == "action_plan")
+        {
+            @* Aksiyon Planı Bölümü *@
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-bottom: none;">
+                    <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                        <span class="bi bi-calendar-check"></span> 30-60-90 Günlük Aksiyon Planı
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (!string.IsNullOrEmpty(actionPlanError))
+                    {
+                        <div class="alert alert-danger py-2 mb-3 small">@actionPlanError</div>
+                    }
+
+                    <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        @if (isGeneratingActionPlan)
+                        {
+                            <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2" disabled>
+                                <span class="spinner-border spinner-border-sm" role="status"></span> Yapay Zeka plan oluşturuyor...
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2" @onclick="GenerateActionPlan">
+                                <span class="bi bi-cpu-fill"></span> AI ile Aksiyon Planı Oluştur (Kaydeder)
+                            </button>
+                        }
+                        @if (actionPlan is not null)
+                        {
+                            <span class="text-muted small">Son güncelleme: @actionPlan.GeneratedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                        }
+                    </div>
+
+                    @if (actionPlan is null)
+                    {
+                        <div class="alert alert-light text-center py-4 border shadow-sm mb-0" style="border-radius: 8px;">
+                            Bu problem için henüz bir aksiyon planı oluşturulmamış.
+                        </div>
+                    }
+                    else
+                    {
+                        @* 30 / 60 / 90 gün sütunları *@
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">@RenderActionColumn("30 Gün", actionPlan.Day30, "#1d4ed8")</div>
+                            <div class="col-md-4">@RenderActionColumn("60 Gün", actionPlan.Day60, "#7c3aed")</div>
+                            <div class="col-md-4">@RenderActionColumn("90 Gün", actionPlan.Day90, "#059669")</div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="p-3 rounded h-100" style="background-color: #f0fdf4;">
+                                    <h6 class="font-weight-bold text-success mb-2">🎯 Başarı Metrikleri</h6>
+                                    @if (actionPlan.SuccessMetrics.Any())
+                                    {
+                                        <ul class="mb-0 ps-3 small text-dark">
+                                            @foreach (var m in actionPlan.SuccessMetrics)
+                                            {
+                                                <li>@m</li>
+                                            }
+                                        </ul>
+                                    }
+                                    else { <span class="text-muted small">-</span> }
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 rounded h-100" style="background-color: #fefce8;">
+                                    <h6 class="font-weight-bold text-warning mb-2">⚡ Hızlı Kazanımlar</h6>
+                                    @if (actionPlan.QuickWins.Any())
+                                    {
+                                        <ul class="mb-0 ps-3 small text-dark">
+                                            @foreach (var q in actionPlan.QuickWins)
+                                            {
+                                                <li>@q</li>
+                                            }
+                                        </ul>
+                                    }
+                                    else { <span class="text-muted small">-</span> }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
         else if (activeTab == "notes")
         {
             @* Notlar Bölümü *@
@@ -1540,6 +1630,11 @@
     private string relatedError = "";
     private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>? allProblemsCache;
 
+    // Aksiyon planı state alanları
+    private MSC.IdeaForge.Application.ActionPlans.DTOs.ActionPlanDto? actionPlan;
+    private bool isGeneratingActionPlan = false;
+    private string actionPlanError = "";
+
     protected override async Task OnInitializedAsync()
     {
         // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma, çözümler, MVP planı ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
@@ -1556,6 +1651,7 @@
             await LoadDecisions();
             await LoadRevenue();
             await LoadNotes();
+            await LoadActionPlan();
         }
         catch
         {
@@ -1667,6 +1763,87 @@
             validationQuestions = new();
         }
     }
+
+    /// <summary>
+    /// Probleme ait mevcut aksiyon planını yükler.
+    /// </summary>
+    private async Task LoadActionPlan()
+    {
+        try
+        {
+            actionPlan = await GetActionPlanHandler.HandleAsync(Id);
+        }
+        catch
+        {
+            actionPlan = null;
+        }
+    }
+
+    /// <summary>
+    /// Yapay zeka ile 30-60-90 günlük aksiyon planı üretir ve kaydeder.
+    /// </summary>
+    private async Task GenerateActionPlan()
+    {
+        actionPlanError = "";
+        isGeneratingActionPlan = true;
+        StateHasChanged();
+        try
+        {
+            actionPlan = await GenerateActionPlanHandler.HandleAsync(
+                new MSC.IdeaForge.Application.ActionPlans.Commands.GenerateActionPlanCommand { ProblemId = Id });
+        }
+        catch (Exception ex)
+        {
+            actionPlanError = $"Aksiyon planı oluşturulurken bir hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isGeneratingActionPlan = false;
+            StateHasChanged();
+        }
+    }
+
+    // Bir aksiyon sütununu (30/60/90) render eder
+    private RenderFragment RenderActionColumn(string title, List<MSC.IdeaForge.Domain.ValueObjects.ActionItem> actions, string color) => @<div class="card h-100 border-0 shadow-sm" style="border-radius: 12px; border-top: 4px solid @color !important;">
+        <div class="card-body p-2">
+            <h6 class="font-weight-bold text-center mb-2" style="color: @color;">@title</h6>
+            @if (actions is null || !actions.Any())
+            {
+                <div class="text-muted small text-center">-</div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var a in actions)
+                    {
+                        <div class="p-2 rounded border bg-light">
+                            <div class="d-flex justify-content-between align-items-center gap-1 mb-1">
+                                <span class="font-weight-bold small text-dark">@a.Action</span>
+                                <span class="badge @GetActionPriorityBadge(a.Priority)" style="font-size: 0.62rem;">@a.Priority</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(a.Owner))
+                            {
+                                <div class="text-muted" style="font-size: 0.7rem;">👤 @a.Owner</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(a.Description))
+                            {
+                                <div class="text-dark small mt-1">@a.Description</div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>;
+
+    // Aksiyon önceliğine göre rozet rengi
+    private string GetActionPriorityBadge(string? priority) => priority?.ToLower() switch
+    {
+        var p when p != null && (p.Contains("yüksek") || p.Contains("high") || p.Contains("kritik")) => "bg-danger text-white",
+        var p when p != null && (p.Contains("orta") || p.Contains("medium")) => "bg-warning text-dark",
+        var p when p != null && (p.Contains("düşük") || p.Contains("low")) => "bg-secondary text-white",
+        _ => "bg-info text-dark"
+    };
 
     /// <summary>
     /// Yapay zeka ile bu problemle bağlantılı olabilecek diğer problemleri, mevcut problem başlıkları arasından bulur.
