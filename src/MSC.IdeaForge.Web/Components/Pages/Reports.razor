@@ -1,0 +1,302 @@
+@page "/reports"
+@rendermode InteractiveServer
+@using System.Text
+@using MSC.IdeaForge.Application.Problems.DTOs
+@using MSC.IdeaForge.Application.Decisions.DTOs
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject MSC.IdeaForge.Application.Opportunities.Queries.GetOpportunityByProblemHandler GetOpportunityByProblemHandler
+@inject MSC.IdeaForge.Application.Decisions.Queries.GetAllDecisionsHandler GetAllDecisionsHandler
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Raporlar</PageTitle>
+
+<div class="container-fluid mt-4" style="max-width: 1200px;">
+    @* Sayfa Başlığı + Tarih Aralığı + Export *@
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+            <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Raporlar</h1>
+            <p class="text-muted mb-0">Sistem genelinde özet rapor ve istatistikler.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <select class="form-select form-select-sm" style="width: auto;" value="@selectedRange" @onchange="OnRangeChanged">
+                <option value="week">Bu Hafta</option>
+                <option value="month">Bu Ay</option>
+                <option value="all">Tüm Zamanlar</option>
+            </select>
+            <button class="btn btn-success btn-sm d-flex align-items-center gap-1" @onclick="ExportCsv" disabled="@(FilteredProblems.Count == 0)">
+                <span class="bi bi-download"></span> CSV İndir
+            </button>
+        </div>
+    </div>
+
+    @if (problems is null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Rapor verileri yükleniyor...</p>
+        </div>
+    }
+    else
+    {
+        @* Sektör Bazlı Özet + Karar Özeti *@
+        <div class="row g-3 mb-4">
+            <div class="col-md-7">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px; border: 1px solid #e3e6f0;">
+                    <div class="card-header bg-light border-0 py-2"><h6 class="m-0 font-weight-bold text-dark">Sektör Bazlı Özet</h6></div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="table-light text-muted small text-uppercase">
+                                <tr><th class="ps-3">Sektör</th><th class="text-center">Problem Sayısı</th><th class="text-center pe-3">Ort. Skor</th></tr>
+                            </thead>
+                            <tbody>
+                                @if (!SectorSummary.Any())
+                                {
+                                    <tr><td colspan="3" class="text-center text-muted small py-3">Veri yok.</td></tr>
+                                }
+                                else
+                                {
+                                    @foreach (var s in SectorSummary)
+                                    {
+                                        <tr>
+                                            <td class="ps-3">@s.Sector</td>
+                                            <td class="text-center">@s.Count</td>
+                                            <td class="text-center pe-3">@(s.AvgScore > 0 ? s.AvgScore.ToString("0.0") : "-")</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px; border: 1px solid #e3e6f0;">
+                    <div class="card-header bg-light border-0 py-2"><h6 class="m-0 font-weight-bold text-dark">Karar Özeti</h6></div>
+                    <div class="card-body d-flex flex-column gap-2">
+                        <div class="d-flex justify-content-between"><span class="text-success"><span class="bi bi-check-circle-fill"></span> Onaylandı</span><strong>@decisionCounts.GetValueOrDefault("Approved")</strong></div>
+                        <div class="d-flex justify-content-between"><span class="text-danger"><span class="bi bi-x-circle-fill"></span> Reddedildi</span><strong>@decisionCounts.GetValueOrDefault("Rejected")</strong></div>
+                        <div class="d-flex justify-content-between"><span class="text-warning"><span class="bi bi-pause-circle-fill"></span> Park Edildi</span><strong>@decisionCounts.GetValueOrDefault("Parked")</strong></div>
+                        <div class="d-flex justify-content-between"><span class="text-primary"><span class="bi bi-arrow-right-circle-fill"></span> Devam</span><strong>@decisionCounts.GetValueOrDefault("Continue")</strong></div>
+                        <div class="d-flex justify-content-between"><span class="text-dark"><span class="bi bi-archive-fill"></span> Arşivlendi</span><strong>@decisionCounts.GetValueOrDefault("Archive")</strong></div>
+                        <hr class="my-1" />
+                        <div class="d-flex justify-content-between"><span class="text-muted small">Toplam Karar</span><strong>@decisions.Count</strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* En Yüksek Fırsatlar *@
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; border: 1px solid #e3e6f0;">
+            <div class="card-header bg-light border-0 py-2"><h6 class="m-0 font-weight-bold text-dark"><span class="bi bi-trophy-fill text-warning"></span> En Yüksek Fırsatlar</h6></div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <tbody>
+                        @if (!TopOpportunities.Any())
+                        {
+                            <tr><td class="text-center text-muted small py-3">Skorlanmış fırsat yok.</td></tr>
+                        }
+                        else
+                        {
+                            @foreach (var p in TopOpportunities)
+                            {
+                                <tr>
+                                    <td class="ps-3"><a href="/problems/@p.Id" class="text-decoration-none font-weight-bold text-primary">@p.Title</a></td>
+                                    <td class="text-muted small">@(string.IsNullOrEmpty(p.Sector) ? "-" : p.Sector)</td>
+                                    <td class="text-end pe-3"><span class="badge @GetScoreBadgeClass(opportunityScores[p.Id]) text-white">@opportunityScores[p.Id].ToString("0.0") / 10</span></td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @* Problem Özet Tablosu *@
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; border: 1px solid #e3e6f0;">
+            <div class="card-header bg-light border-0 py-2 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-dark">Problem Özet Tablosu</h6>
+                <span class="badge bg-secondary">@FilteredProblems.Count problem</span>
+            </div>
+            <div class="card-body p-0" style="overflow-x: auto;">
+                <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.85rem;">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-3">Başlık</th>
+                            <th>Sektör</th>
+                            <th>Durum</th>
+                            <th>Öncelik</th>
+                            <th class="text-center">Fırsat Skoru</th>
+                            <th class="pe-3">Eklenme</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!FilteredProblems.Any())
+                        {
+                            <tr><td colspan="6" class="text-center text-muted small py-3">Seçili tarih aralığında problem yok.</td></tr>
+                        }
+                        else
+                        {
+                            @foreach (var p in FilteredProblems)
+                            {
+                                <tr>
+                                    <td class="ps-3"><a href="/problems/@p.Id" class="text-decoration-none text-dark">@p.Title</a></td>
+                                    <td>@(string.IsNullOrEmpty(p.Sector) ? "-" : p.Sector)</td>
+                                    <td>@GetStatusText(p.Status)</td>
+                                    <td>@GetPriorityText(p.Priority)</td>
+                                    <td class="text-center">
+                                        @if (opportunityScores.TryGetValue(p.Id, out var sc) && sc > 0)
+                                        {
+                                            <span class="badge @GetScoreBadgeClass(sc) text-white">@sc.ToString("0.0")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="pe-3 font-mono text-muted small">@p.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<ProblemDto>? problems;
+    private Dictionary<Guid, double> opportunityScores = new();
+    private List<DecisionDto> decisions = new();
+    private Dictionary<string, int> decisionCounts = new();
+    private string selectedRange = "all";
+
+    protected override async Task OnInitializedAsync()
+    {
+        problems = await GetProblemsHandler.HandleAsync();
+
+        // Fırsat skorlarını topluyoruz
+        opportunityScores.Clear();
+        foreach (var p in problems)
+        {
+            var opp = await GetOpportunityByProblemHandler.HandleAsync(p.Id);
+            opportunityScores[p.Id] = opp?.TotalScore ?? 0;
+        }
+
+        // Kararları çekip türlerine göre sayıyoruz
+        decisions = (await GetAllDecisionsHandler.HandleAsync()).ToList();
+        decisionCounts = decisions
+            .GroupBy(d => d.DecisionType)
+            .ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    private void OnRangeChanged(ChangeEventArgs e)
+    {
+        selectedRange = e.Value?.ToString() ?? "all";
+    }
+
+    /// <summary>
+    /// Seçili tarih aralığına göre filtrelenmiş problemler.
+    /// </summary>
+    private List<ProblemDto> FilteredProblems
+    {
+        get
+        {
+            if (problems is null) return new();
+            // Bu hafta = son 7 gün, Bu ay = son 30 gün, Tüm zamanlar = filtre yok
+            var threshold = selectedRange switch
+            {
+                "week" => DateTime.UtcNow.AddDays(-7),
+                "month" => DateTime.UtcNow.AddDays(-30),
+                _ => (DateTime?)null
+            };
+            var query = threshold is null ? problems : problems.Where(p => p.CreatedAt >= threshold.Value);
+            return query.OrderByDescending(p => p.CreatedAt).ToList();
+        }
+    }
+
+    /// <summary>
+    /// Filtrelenmiş problemlerin en yüksek 5 fırsat skorlusu.
+    /// </summary>
+    private List<ProblemDto> TopOpportunities => FilteredProblems
+        .Where(p => opportunityScores.GetValueOrDefault(p.Id) > 0)
+        .OrderByDescending(p => opportunityScores[p.Id])
+        .Take(5)
+        .ToList();
+
+    /// <summary>
+    /// Sektör bazlı özet (problem sayısı + ortalama skor).
+    /// </summary>
+    private List<(string Sector, int Count, double AvgScore)> SectorSummary => FilteredProblems
+        .GroupBy(p => string.IsNullOrWhiteSpace(p.Sector) ? "Belirtilmemiş" : p.Sector!)
+        .Select(g =>
+        {
+            var scored = g.Where(p => opportunityScores.GetValueOrDefault(p.Id) > 0).ToList();
+            var avg = scored.Any() ? scored.Average(p => opportunityScores[p.Id]) : 0;
+            return (g.Key, g.Count(), avg);
+        })
+        .OrderByDescending(x => x.Item2)
+        .ToList();
+
+    /// <summary>
+    /// Problem özet tablosunu CSV olarak dışa aktarır.
+    /// </summary>
+    private async Task ExportCsv()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("Başlık,Sektör,Durum,Öncelik,Fırsat Skoru,Eklenme Tarihi");
+        foreach (var p in FilteredProblems)
+        {
+            var score = opportunityScores.GetValueOrDefault(p.Id);
+            var scoreText = score > 0 ? score.ToString("0.0") : "";
+            sb.AppendLine(string.Join(",",
+                Csv(p.Title),
+                Csv(string.IsNullOrEmpty(p.Sector) ? "-" : p.Sector),
+                Csv(GetStatusText(p.Status)),
+                Csv(GetPriorityText(p.Priority)),
+                Csv(scoreText),
+                Csv(p.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))));
+        }
+
+        var fileName = $"rapor_{selectedRange}_{DateTime.Now:yyyyMMdd}.csv";
+        await JsRuntime.InvokeVoidAsync("appInterop.downloadCsv", fileName, sb.ToString());
+    }
+
+    // CSV alanını güvenli hale getirir (tırnak ve virgül kaçışı)
+    private static string Csv(string? value)
+    {
+        value ??= "";
+        if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+        {
+            value = "\"" + value.Replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
+    private string GetScoreBadgeClass(double score) => score switch
+    {
+        >= 8 => "bg-success",
+        >= 6 => "bg-warning",
+        _ => "bg-danger"
+    };
+
+    private string GetStatusText(string status) => status switch
+    {
+        "Draft" => "Taslak",
+        "Discovered" => "Keşfedildi",
+        "Analyzed" => "Analiz Edildi",
+        "Validated" => "Doğrulandı",
+        "Archived" => "Arşivlendi",
+        _ => status
+    };
+
+    private string GetPriorityText(string priority) => priority switch
+    {
+        "Low" => "Düşük",
+        "Medium" => "Orta",
+        "High" => "Yüksek",
+        "Critical" => "Kritik",
+        _ => priority
+    };
+}

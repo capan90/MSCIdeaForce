@@ -103,3 +103,29 @@
         overflow-y: auto;
     }
 }
+
+/* Menü grup başlıkları — küçük, gri, büyük harf */
+.nav-group-title {
+    color: #8a8d91;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.85rem 1.5rem 0.2rem 1.5rem;
+    white-space: nowrap;
+}
+
+/* Çok sayıda menü öğesi olduğu için satır yüksekliğini biraz azaltıp öğelerin kesilmesini engelliyoruz */
+.nav-item ::deep .nav-link {
+    height: 2.6rem;
+    line-height: 2.6rem;
+    white-space: nowrap;
+}
+
+.nav-item {
+    padding-bottom: 0.15rem;
+}
+
+.nav-item:first-of-type {
+    padding-top: 0.5rem;
+}

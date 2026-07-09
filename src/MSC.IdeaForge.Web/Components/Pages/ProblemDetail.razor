@@ -75,10 +75,20 @@
         </a>
         @if (!isLoading && problem is not null)
         {
-            @* Silme butonu *@
-            <button class="btn btn-danger" @onclick="DeleteProblem" style="display: inline-flex; align-items: center; gap: 0.5rem;">
-                <span class="bi bi-trash-fill" aria-hidden="true"></span> Sil
-            </button>
+            <div class="d-flex align-items-center gap-2">
+                @if (!string.IsNullOrEmpty(copyMessage))
+                {
+                    <span class="text-success small font-weight-bold">@copyMessage</span>
+                }
+                @* Özeti panoya kopyala butonu *@
+                <button class="btn btn-outline-primary" @onclick="CopySummary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                    📋 Özet Kopyala
+                </button>
+                @* Silme butonu *@
+                <button class="btn btn-danger" @onclick="DeleteProblem" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <span class="bi bi-trash-fill" aria-hidden="true"></span> Sil
+                </button>
+            </div>
         }
     </div>
 
@@ -1355,6 +1365,9 @@
     private bool isGeneratingQuestions = false;
     private string questionsErrorMessage = "";
 
+    // Özet kopyalama durumu
+    private string copyMessage = "";
+
     protected override async Task OnInitializedAsync()
     {
         // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma, çözümler, MVP planı ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
@@ -1479,6 +1492,37 @@
         catch
         {
             validationQuestions = new();
+        }
+    }
+
+    /// <summary>
+    /// Problem özetini belirlenen formatta panoya kopyalar.
+    /// </summary>
+    private async Task CopySummary()
+    {
+        if (problem is null) return;
+
+        var score = opportunity is not null ? $"{opportunity.TotalScore:0.0}/10" : "Puanlanmadı";
+        var sector = string.IsNullOrWhiteSpace(problem.Sector) ? "Belirtilmemiş" : problem.Sector;
+        var summary = string.IsNullOrWhiteSpace(problemAnalysis?.Summary) ? "-" : problemAnalysis!.Summary;
+        var solution = string.IsNullOrWhiteSpace(problemAnalysis?.SolutionTypeSuggestion) ? "-" : problemAnalysis!.SolutionTypeSuggestion;
+        var revenueModel = string.IsNullOrWhiteSpace(revenueDto?.RevenueModel) ? "-" : revenueDto!.RevenueModel;
+
+        var text = $"🎯 Problem: {problem.Title}\n" +
+                   $"📊 Fırsat Skoru: {score}\n" +
+                   $"🏭 Sektör: {sector}\n" +
+                   $"📝 Özet: {summary}\n" +
+                   $"💡 Çözüm Önerisi: {solution}\n" +
+                   $"📈 Gelir Modeli: {revenueModel}";
+
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("appInterop.copyToClipboard", text);
+            copyMessage = "Kopyalandı!";
+        }
+        catch
+        {
+            copyMessage = "Kopyalanamadı.";
         }
     }
 
