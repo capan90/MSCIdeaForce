@@ -23,6 +23,8 @@ public class AppDbContext : DbContext
     public DbSet<FounderProfile> FounderProfiles => Set<FounderProfile>();
     public DbSet<CompetitorAnalysis> CompetitorAnalyses => Set<CompetitorAnalysis>();
     public DbSet<FieldNote> FieldNotes => Set<FieldNote>();
+    public DbSet<InvestorBrief> InvestorBriefs => Set<InvestorBrief>();
+    public DbSet<ProblemNote> ProblemNotes => Set<ProblemNote>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -136,6 +138,20 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Content).IsRequired();
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<InvestorBrief>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExecutiveSummary).IsRequired();
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<ProblemNote>(entity =>
+        {
+            entity.HasKey(e => e.Id);
             entity.Property(e => e.Content).IsRequired();
             entity.HasQueryFilter(e => !e.IsDeleted);
         });

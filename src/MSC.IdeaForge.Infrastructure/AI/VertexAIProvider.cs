@@ -218,4 +218,14 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
     {
         throw new NotImplementedException();
     }
+
+    public Task<InvestorBriefResult> GenerateInvestorBriefAsync(string title, string description, string? sector, string? solutionType, string? revenueModel, double? opportunityScore)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<Grant>> FindGrantsAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
 }

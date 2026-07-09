@@ -30,6 +30,11 @@ using MSC.IdeaForge.Application.CompetitorAnalyses.Commands;
 using MSC.IdeaForge.Application.CompetitorAnalyses.Queries;
 using MSC.IdeaForge.Application.FieldNotes.Commands;
 using MSC.IdeaForge.Application.FieldNotes.Queries;
+using MSC.IdeaForge.Application.InvestorBriefs.Commands;
+using MSC.IdeaForge.Application.InvestorBriefs.Queries;
+using MSC.IdeaForge.Application.ProblemNotes.Commands;
+using MSC.IdeaForge.Application.ProblemNotes.Queries;
+using MSC.IdeaForge.Application.Search;
 
 namespace MSC.IdeaForge.Application;
 
@@ -125,6 +130,18 @@ public static class DependencyInjection
         // Saha İstihbaratı (Field Notes) işleyicileri
         services.AddScoped<CreateFieldNoteHandler>();
         services.AddScoped<GetFieldNotesHandler>();
+
+        // Yatırımcı Briefing işleyicileri
+        services.AddScoped<GenerateInvestorBriefHandler>();
+        services.AddScoped<GetInvestorBriefHandler>();
+
+        // Problem Notları işleyicileri
+        services.AddScoped<CreateProblemNoteHandler>();
+        services.AddScoped<DeleteProblemNoteHandler>();
+        services.AddScoped<GetProblemNotesHandler>();
+
+        // Sistem geneli arama işleyicisi
+        services.AddScoped<GlobalSearchHandler>();
 
         return services;
     }

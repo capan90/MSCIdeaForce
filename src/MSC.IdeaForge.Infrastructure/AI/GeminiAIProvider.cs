@@ -1092,6 +1092,170 @@ Sen profesyonel bir rekabet istihbaratı (competitive intelligence) analisti yap
     }
 
     /// <summary>
+    /// Verilen problem için yatırımcıya sunulacak kısa bir briefing üretir.
+    /// </summary>
+    public async Task<InvestorBriefResult> GenerateInvestorBriefAsync(string title, string description, string? sector, string? solutionType, string? revenueModel, double? opportunityScore)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        // API Key kontrolü
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        // Gemini promptunu hazırlıyoruz
+        var prompt = $@"Aşağıdaki girişim fikri için yatırımcılara sunulacak kısa ve profesyonel bir yatırımcı briefing hazırla. Yanıtı mutlaka JSON formatında döndür. JSON formatı şu alanları içermelidir:
+- ExecutiveSummary (Yönetici özeti, Türkçe)
+- ProblemStatement (Problem tanımı, Türkçe)
+- MarketOpportunity (Pazar fırsatı, Türkçe)
+- Solution (Çözüm, Türkçe)
+- BusinessModel (İş modeli, Türkçe)
+- CompetitiveAdvantage (Rekabet avantajı, Türkçe)
+- AskAmount (Talep edilen yatırım tutarı, Türkçe)
+- UseOfFunds (Yatırımın kullanım planı, Türkçe)
+- Traction (Mevcut ilerleme / traction, Türkçe)
+
+Girişim Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+Çözüm Tipi: {solutionType ?? "Belirtilmemiş"}
+Gelir Modeli: {revenueModel ?? "Belirtilmemiş"}
+Fırsat Skoru (10 üzerinden): {(opportunityScore.HasValue ? opportunityScore.Value.ToString("0.0") : "Belirtilmemiş")}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+{{
+  ""ExecutiveSummary"": ""..."",
+  ""ProblemStatement"": ""..."",
+  ""MarketOpportunity"": ""..."",
+  ""Solution"": ""..."",
+  ""BusinessModel"": ""..."",
+  ""CompetitiveAdvantage"": ""..."",
+  ""AskAmount"": ""..."",
+  ""UseOfFunds"": ""..."",
+  ""Traction"": ""...""
+}}
+
+Sen deneyimli bir girişim danışmanı ve yatırım uzmanı yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new { parts = new[] { new { text = prompt } } }
+            }
+        };
+
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        jsonText = CleanJsonText(jsonText);
+
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var result = JsonSerializer.Deserialize<InvestorBriefResult>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Verilen problem/proje için Türkiye'deki uygun hibe, destek ve teşvik programlarını bulur.
+    /// </summary>
+    public async Task<List<Grant>> FindGrantsAsync(string title, string description, string? sector)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        // API Key kontrolü
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        // Gemini promptunu hazırlıyoruz
+        var prompt = $@"Aşağıdaki problem/proje için Türkiye'deki uygun hibe, destek ve teşvik programlarını (TÜBİTAK, KOSGEB, kalkınma ajansları, AB fonları, bakanlık destekleri vb.) bul.
+Yanıtı mutlaka JSON formatında döndür. Yanıt bir JSON array olmalıdır. Her eleman şu alanları içermelidir:
+- Name (Program adı)
+- Organization (Programı yürüten kurum)
+- Description (Programın kısa açıklaması, Türkçe)
+- Amount (Sağlanan destek tutarı, Türkçe)
+- Deadline (Son başvuru tarihi / dönemi, Türkçe)
+- EligibilityCriteria (Uygunluk kriterleri, Türkçe)
+- ApplicationUrl (Başvuru veya bilgi bağlantısı, tahmini)
+- MatchScore (Bu projeye uygunluk skoru, 0-100 arası tamsayı)
+
+Proje Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+[
+  {{
+    ""Name"": ""..."",
+    ""Organization"": ""..."",
+    ""Description"": ""..."",
+    ""Amount"": ""..."",
+    ""Deadline"": ""..."",
+    ""EligibilityCriteria"": ""..."",
+    ""ApplicationUrl"": ""..."",
+    ""MatchScore"": 85
+  }}
+]
+
+Sen Türkiye'deki hibe ve teşvik programları konusunda uzman bir danışman yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON array döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new { parts = new[] { new { text = prompt } } }
+            }
+        };
+
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        jsonText = CleanJsonText(jsonText);
+
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var result = JsonSerializer.Deserialize<List<Grant>>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Yapay zeka çıktısını markdown kod bloğu işaretlerinden temizleyip saf JSON haline getirir.
     /// </summary>
     private static string CleanJsonText(string jsonText)

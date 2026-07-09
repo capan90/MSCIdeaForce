@@ -197,4 +197,14 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
     {
         throw new NotImplementedException();
     }
+
+    public Task<InvestorBriefResult> GenerateInvestorBriefAsync(string title, string description, string? sector, string? solutionType, string? revenueModel, double? opportunityScore)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<Grant>> FindGrantsAsync(string title, string description, string? sector)
+    {
+        throw new NotImplementedException();
+    }
 }

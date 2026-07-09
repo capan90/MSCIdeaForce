@@ -67,4 +67,14 @@ public interface IAIProvider
     /// </summary>
     /// <returns>Her rakibi ve rekabet avantajlarını içeren Competitor listesi döner.</returns>
     Task<List<Competitor>> AnalyzeCompetitorsAsync(string title, string description, string? sector);
+
+    /// <summary>
+    /// Verilen problem için yatırımcıya sunulacak kısa bir briefing üretir.
+    /// </summary>
+    Task<InvestorBriefResult> GenerateInvestorBriefAsync(string title, string description, string? sector, string? solutionType, string? revenueModel, double? opportunityScore);
+
+    /// <summary>
+    /// Verilen problem/proje için Türkiye'deki uygun hibe, destek ve teşvik programlarını bulur.
+    /// </summary>
+    Task<List<Grant>> FindGrantsAsync(string title, string description, string? sector);
 }

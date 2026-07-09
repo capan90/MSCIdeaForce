@@ -38,6 +38,9 @@
 @inject MSC.IdeaForge.Application.Revenues.Queries.GetRevenueAnalysisHandler GetRevenueAnalysisHandler
 @inject MSC.IdeaForge.Application.Validations.Commands.GenerateValidationQuestionsHandler GenerateValidationQuestionsHandler
 @inject MSC.IdeaForge.Application.Validations.Commands.SaveValidationQuestionsHandler SaveValidationQuestionsHandler
+@inject MSC.IdeaForge.Application.ProblemNotes.Commands.CreateProblemNoteHandler CreateProblemNoteHandler
+@inject MSC.IdeaForge.Application.ProblemNotes.Commands.DeleteProblemNoteHandler DeleteProblemNoteHandler
+@inject MSC.IdeaForge.Application.ProblemNotes.Queries.GetProblemNotesHandler GetProblemNotesHandler
 
 <PageTitle>Problem Detayı</PageTitle>
 
@@ -134,6 +137,9 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "revenue" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("revenue")'>Gelir Analizi</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "notes" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("notes")'>Notlar (@(problemNotes?.Count ?? 0))</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "ai_analysis" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("ai_analysis")'>AI Analizi</button>
@@ -1101,6 +1107,76 @@
                 </div>
             </div>
         }
+        else if (activeTab == "notes")
+        {
+            @* Notlar Bölümü *@
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #475569, #64748b); border-bottom: none;">
+                    <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                        <span class="bi bi-sticky-fill"></span> Notlar
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @* Hızlı not ekleme *@
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">Not Tipi</label>
+                            <select class="form-select form-select-sm" @bind="newNoteType">
+                                <option value="@NoteType.General">Genel</option>
+                                <option value="@NoteType.Idea">Fikir</option>
+                                <option value="@NoteType.Risk">Risk</option>
+                                <option value="@NoteType.Action">Aksiyon</option>
+                                <option value="@NoteType.Meeting">Toplantı</option>
+                            </select>
+                        </div>
+                        <div class="col-md-9">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">İçerik</label>
+                            <textarea class="form-control form-control-sm" rows="2" placeholder="Notunuzu yazın..." @bind="newNoteContent"></textarea>
+                        </div>
+                        <div class="col-12 text-end">
+                            <button class="btn btn-sm text-white px-4" style="background-color: #475569;" @onclick="AddNote" disabled="@isAddingNote">
+                                @if (isAddingNote)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                }
+                                else
+                                {
+                                    <span>Ekle</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+
+                    @* Notlar zaman çizelgesi (yeniden eskiye) *@
+                    @if (problemNotes is null || !problemNotes.Any())
+                    {
+                        <div class="alert alert-light text-center py-4 border shadow-sm mb-0" style="border-radius: 8px;">
+                            Bu probleme ait henüz bir not eklenmemiş.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var note in problemNotes)
+                            {
+                                <div class="p-3 rounded border" style="background-color: #fcfcfc; border-left: 4px solid @GetNoteTypeColor(note.NoteType) !important;">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge text-white" style="background-color: @GetNoteTypeColor(note.NoteType); font-size: 0.7rem;">@GetNoteTypeText(note.NoteType)</span>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="text-muted font-mono" style="font-size: 0.72rem;">@note.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                                            <button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size: 0.7rem;" @onclick="() => DeleteNote(note.Id)" title="Sil">
+                                                <span class="bi bi-trash"></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p class="mb-0 text-dark small" style="white-space: pre-line;">@note.Content</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
         else if (activeTab == "revenue")
         {
             @* Gelir Analizi Bölümü *@
@@ -1368,6 +1444,12 @@
     // Özet kopyalama durumu
     private string copyMessage = "";
 
+    // Notlar state alanları
+    private List<MSC.IdeaForge.Application.ProblemNotes.DTOs.ProblemNoteDto>? problemNotes;
+    private string newNoteContent = "";
+    private NoteType newNoteType = NoteType.General;
+    private bool isAddingNote = false;
+
     protected override async Task OnInitializedAsync()
     {
         // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma, çözümler, MVP planı ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
@@ -1383,6 +1465,7 @@
             await LoadMVPPlan();
             await LoadDecisions();
             await LoadRevenue();
+            await LoadNotes();
         }
         catch
         {
@@ -1525,6 +1608,78 @@
             copyMessage = "Kopyalanamadı.";
         }
     }
+
+    /// <summary>
+    /// Probleme ait notları yükler.
+    /// </summary>
+    private async Task LoadNotes()
+    {
+        try
+        {
+            problemNotes = await GetProblemNotesHandler.HandleAsync(Id);
+        }
+        catch
+        {
+            problemNotes = new();
+        }
+    }
+
+    /// <summary>
+    /// Yeni bir problem notu ekler.
+    /// </summary>
+    private async Task AddNote()
+    {
+        if (string.IsNullOrWhiteSpace(newNoteContent)) return;
+
+        isAddingNote = true;
+        try
+        {
+            await CreateProblemNoteHandler.HandleAsync(new MSC.IdeaForge.Application.ProblemNotes.Commands.CreateProblemNoteCommand
+            {
+                ProblemId = Id,
+                Content = newNoteContent,
+                NoteType = newNoteType
+            });
+            newNoteContent = "";
+            newNoteType = NoteType.General;
+            await LoadNotes();
+        }
+        finally
+        {
+            isAddingNote = false;
+        }
+    }
+
+    /// <summary>
+    /// Bir problem notunu siler.
+    /// </summary>
+    private async Task DeleteNote(Guid noteId)
+    {
+        await DeleteProblemNoteHandler.HandleAsync(new MSC.IdeaForge.Application.ProblemNotes.Commands.DeleteProblemNoteCommand { NoteId = noteId });
+        await LoadNotes();
+    }
+
+    // Not tipi → Türkçe etiket
+    private string GetNoteTypeText(string noteType) => noteType switch
+    {
+        "General" => "Genel",
+        "Idea" => "Fikir",
+        "Risk" => "Risk",
+        "Action" => "Aksiyon",
+        "Meeting" => "Toplantı",
+        _ => noteType
+    };
+
+    // Not tipi → renk kodu
+    private string GetNoteTypeColor(string noteType) => noteType switch
+    {
+        "General" => "#64748b",
+        "Idea" => "#0d6efd",
+        "Risk" => "#dc3545",
+        "Action" => "#fd7e14",
+        "Meeting" => "#6f42c1",
+        _ => "#64748b"
+    };
 
     /// <summary>
     /// Probleme ait mevcut gelir analizini yükler.

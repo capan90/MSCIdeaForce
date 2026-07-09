@@ -7,6 +7,9 @@
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    @* Sistem geneli arama kutusu *@
+    <GlobalSearch />
+
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
@@ -65,6 +68,18 @@
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="revenue-analyzer">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Gelir Analizörü
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="investor-brief">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Yatırımcı Briefingi
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="grant-finder">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Hibe Bulucu
             </NavLink>
         </div>
 

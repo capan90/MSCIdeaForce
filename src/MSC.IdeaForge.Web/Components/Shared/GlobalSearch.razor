@@ -1,0 +1,89 @@
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Application.Search
+@inject GlobalSearchHandler GlobalSearchHandler
+@inject NavigationManager NavigationManager
+
+@* Sistem geneli arama kutusu (NavMenu üstünde) *@
+<div class="px-3 py-2 position-relative">
+    <input type="text" class="form-control form-control-sm"
+           placeholder="🔍 Ara (problem, bilgi, saha)..."
+           value="@query" @oninput="OnQueryChanged" @onfocus="OnFocus" />
+
+    @if (showResults && results is not null && !string.IsNullOrWhiteSpace(query))
+    {
+        <div class="position-absolute shadow" style="top: 100%; left: 0.75rem; right: 0.75rem; z-index: 1050; background: #fff; border-radius: 8px; max-height: 60vh; overflow-y: auto; border: 1px solid #dee2e6;">
+            @if (!results.HasResults)
+            {
+                <div class="p-2 text-muted small text-center">Sonuç bulunamadı.</div>
+            }
+            else
+            {
+                @RenderCategory("Problemler", results.Problems)
+                @RenderCategory("Bilgi Bankası", results.KnowledgeEntries)
+                @RenderCategory("Saha Notları", results.FieldNotes)
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string query = "";
+    private GlobalSearchDto? results;
+    private bool showResults = false;
+
+    /// <summary>
+    /// Arama kutusuna her yazıldığında client-side aramayı çalıştırır (en az 2 karakter).
+    /// </summary>
+    private async Task OnQueryChanged(ChangeEventArgs e)
+    {
+        query = e.Value?.ToString() ?? "";
+        showResults = true;
+
+        if (query.Trim().Length < 2)
+        {
+            results = null;
+            return;
+        }
+
+        results = await GlobalSearchHandler.HandleAsync(query);
+    }
+
+    private void OnFocus()
+    {
+        if (!string.IsNullOrWhiteSpace(query)) showResults = true;
+    }
+
+    /// <summary>
+    /// Bir sonuca tıklandığında ilgili sayfaya gider ve aramayı temizler.
+    /// </summary>
+    private void GoTo(string url)
+    {
+        showResults = false;
+        query = "";
+        results = null;
+        NavigationManager.NavigateTo(url);
+    }
+
+    // Tek bir kategori bloğunu render eder
+    private RenderFragment RenderCategory(string title, List<SearchResultItem> items) => __builder =>
+    {
+        <div class="border-bottom">
+            <div class="px-2 pt-2 pb-1 text-uppercase text-muted" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em;">
+                @title (@items.Count)
+            </div>
+            @if (items.Count == 0)
+            {
+                <div class="px-2 pb-2 text-muted" style="font-size: 0.75rem;">—</div>
+            }
+            else
+            {
+                @foreach (var item in items)
+                {
+                    <button type="button" class="btn btn-sm w-100 text-start px-2 py-1 text-truncate" style="font-size: 0.8rem;" @onclick="() => GoTo(item.Url)">
+                        @item.Title
+                    </button>
+                }
+            }
+        </div>
+    };
+}
