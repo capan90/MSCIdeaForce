@@ -12,6 +12,8 @@ using MSC.IdeaForge.Application.Researches.Commands;
 using MSC.IdeaForge.Application.Researches.Queries;
 using MSC.IdeaForge.Application.Solutions.Commands;
 using MSC.IdeaForge.Application.Solutions.Queries;
+using MSC.IdeaForge.Application.MVPPlans.Commands;
+using MSC.IdeaForge.Application.MVPPlans.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -57,6 +59,11 @@ public static class DependencyInjection
         services.AddScoped<DeleteSolutionHandler>();
         services.AddScoped<AISuggestSolutionsHandler>();
         services.AddScoped<GetSolutionsByProblemHandler>();
+
+        // MVP Planı işleyicilerini ekliyoruz
+        services.AddScoped<SaveMVPPlanHandler>();
+        services.AddScoped<GenerateMVPPlanHandler>();
+        services.AddScoped<GetMVPPlanByProblemHandler>();
 
         return services;
     }

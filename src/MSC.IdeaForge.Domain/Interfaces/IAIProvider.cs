@@ -30,4 +30,9 @@ public interface IAIProvider
     /// Verilen problem için olası 3 farklı çözüm önerisi sunar.
     /// </summary>
     Task<List<SolutionSuggestion>> SuggestSolutionsAsync(string title, string description, string? sector);
+
+    /// <summary>
+    /// Problem ve çözüm türüne göre MVP planı oluşturur.
+    /// </summary>
+    Task<MVPPlanResult> GenerateMVPPlanAsync(string title, string description, string? sector, string? solutionType);
 }

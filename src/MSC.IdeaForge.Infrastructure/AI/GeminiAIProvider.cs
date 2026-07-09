@@ -539,6 +539,117 @@ Sen profesyonel bir ürün yöneticisi yapay zekasın. Çıktı olarak sadece ve
         return suggestions;
     }
 
+    /// <summary>
+    /// Problem ve çözüm türüne göre detaylı bir MVP planı üretir.
+    /// </summary>
+    public async Task<MVPPlanResult> GenerateMVPPlanAsync(string title, string description, string? sector, string? solutionType)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        // Gemini promptunu hazırlıyoruz
+        var prompt = $@"Aşağıdaki problem ve önerilen çözüm tipine göre detaylı bir MVP (Minimum Viable Product) planı oluştur. Yanıtı mutlaka JSON formatında döndür.
+JSON formatı şu alanları içermelidir:
+- Scope (MVP kapsamı özeti, Türkçe)
+- UserStories (Kullanıcı hikayeleri listesi, en az 5 adet, Türkçe, JSON string dizisi şeklinde)
+- SprintPlan (3 sprintlik plan, her sprint için hedefler ve teslimatlar, en az 3 elemanlı Türkçe JSON string dizisi şeklinde)
+- TechStack (Önerilen teknolojiler, Türkçe)
+- Risks (MVP sürecindeki potansiyel riskler, Türkçe)
+- FirstSalesPlan (İlk satış / pazara giriş planı, Türkçe)
+
+Problem Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+Önerilen Çözüm Türü: {solutionType ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+{{
+  ""Scope"": ""kapsam detayı"",
+  ""UserStories"": [
+    ""Kullanıcı olarak şunu yapmak istiyorum böylece şu faydayı sağlarım..."",
+    ""Kullanıcı olarak...""
+  ],
+  ""SprintPlan"": [
+    ""Sprint 1: Altyapının kurulması ve kullanıcı girişi..."",
+    ""Sprint 2: ..."",
+    ""Sprint 3: ...""
+  ],
+  ""TechStack"": ""React, .NET, PostgreSQL"",
+  ""Risks"": ""Pazar entegrasyon riskleri..."",
+  ""FirstSalesPlan"": ""İlk 10 müşteriye ücretsiz beta sunulması...""
+}}
+
+Sen profesyonel bir ürün müdürü yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    parts = new[]
+                    {
+                        new { text = prompt }
+                    }
+                }
+            }
+        };
+
+        // HTTP POST isteği gönderiyoruz
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(
+            requestUrl,
+            requestBody
+        );
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        // Eğer yapay zeka çıktıyı markdown kod bloğu olarak döndürdüyse temizliyoruz
+        if (jsonText.StartsWith("```json"))
+        {
+            jsonText = jsonText.Substring(7);
+        }
+        else if (jsonText.StartsWith("```"))
+        {
+            jsonText = jsonText.Substring(3);
+        }
+
+        if (jsonText.EndsWith("```"))
+        {
+            jsonText = jsonText.Substring(0, jsonText.Length - 3);
+        }
+
+        jsonText = jsonText.Trim();
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        var result = JsonSerializer.Deserialize<MVPPlanResult>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
     private class SolutionSuggestionDto
     {
         public string? SolutionType { get; set; }

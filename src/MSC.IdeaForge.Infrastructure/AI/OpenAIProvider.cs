@@ -165,4 +165,9 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
     {
         throw new NotImplementedException();
     }
+
+    public Task<MVPPlanResult> GenerateMVPPlanAsync(string title, string description, string? sector, string? solutionType)
+    {
+        throw new NotImplementedException();
+    }
 }

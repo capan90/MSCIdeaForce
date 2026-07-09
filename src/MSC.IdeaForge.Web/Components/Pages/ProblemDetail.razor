@@ -20,6 +20,9 @@
 @inject MSC.IdeaForge.Application.Solutions.Commands.DeleteSolutionHandler DeleteSolutionHandler
 @inject MSC.IdeaForge.Application.Solutions.Commands.AISuggestSolutionsHandler AISuggestSolutionsHandler
 @inject MSC.IdeaForge.Application.Solutions.Queries.GetSolutionsByProblemHandler GetSolutionsByProblemHandler
+@inject MSC.IdeaForge.Application.MVPPlans.Commands.SaveMVPPlanHandler SaveMVPPlanHandler
+@inject MSC.IdeaForge.Application.MVPPlans.Commands.GenerateMVPPlanHandler GenerateMVPPlanHandler
+@inject MSC.IdeaForge.Application.MVPPlans.Queries.GetMVPPlanByProblemHandler GetMVPPlanByProblemHandler
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 
@@ -57,7 +60,7 @@
     }
     else
     {
-        @* Sekme yapısı (Problem Detayı vs Sinyaller vs Fırsat Skoru vs Doğrulama vs Araştırma vs Çözüm Önerileri vs AI Analizi) *@
+        @* Sekme yapısı (Problem Detayı vs Sinyaller vs Fırsat Skoru vs Doğrulama vs Araştırma vs Çözüm Önerileri vs MVP Planı vs AI Analizi) *@
         <ul class="nav nav-tabs mb-4">
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "detail" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("detail")'>Detay Bilgileri</button>
@@ -76,6 +79,9 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "solutions" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("solutions")'>Çözüm Önerileri</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "mvp" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("mvp")'>MVP Planı</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "ai_analysis" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("ai_analysis")'>AI Analizi</button>
@@ -705,6 +711,111 @@
                 </div>
             </div>
         }
+        else if (activeTab == "mvp")
+        {
+            @* MVP Planı Bölümü *@
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #4f46e5, #3730a3); border-bottom: none;">
+                    <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                        <span class="bi bi-list-task"></span> MVP Planlayıcı (MVP Planner)
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (mvpSuccessMessage != "")
+                    {
+                        <div class="alert alert-success py-2 mb-3 small">@mvpSuccessMessage</div>
+                    }
+                    @if (mvpErrorMessage != "")
+                    {
+                        <div class="alert alert-danger py-2 mb-3 small">@mvpErrorMessage</div>
+                    }
+
+                    @* AI ile MVP Planı Oluştur Butonu *@
+                    <div class="mb-4 d-flex justify-content-between align-items-center">
+                        @if (isAiGeneratingMvp)
+                        {
+                            <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2" disabled>
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Yapay Zeka MVP planı hazırlıyor...
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2" @onclick="RunAiGenerateMVPPlan">
+                                <span class="bi bi-cpu-fill"></span> AI ile MVP Planı Oluştur
+                            </button>
+                        }
+
+                        @if (mvpPlanDto?.UpdatedAt is not null)
+                        {
+                            <span class="text-muted small" style="font-size: 0.8rem;">Son Güncelleme: @mvpPlanDto.UpdatedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</span>
+                        }
+                        else if (mvpPlanDto?.CreatedAt is not null)
+                        {
+                            <span class="text-muted small" style="font-size: 0.8rem;">Son Güncelleme: @mvpPlanDto.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</span>
+                        }
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">MVP Kapsamı Özeti</label>
+                            <textarea class="form-control form-control-sm" rows="3" placeholder="MVP kapsamında yer alacak temel özellikler ve hedefler..." @bind="mvpScope"></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-2 font-weight-bold d-block">Kullanıcı Hikayeleri (User Stories)</label>
+                            @for (int i = 0; i < mvpUserStories.Count; i++)
+                            {
+                                var index = i;
+                                <div class="input-group input-group-sm mb-2">
+                                    <span class="input-group-text bg-light font-mono" style="font-size: 0.8rem;">Story #@(index+1)</span>
+                                    <input class="form-control form-control-sm" placeholder="Kullanıcı olarak şunu yapmak istiyorum..." @bind="mvpUserStories[index]" />
+                                    <button class="btn btn-outline-danger" type="button" @onclick="() => mvpUserStories.RemoveAt(index)">Sil</button>
+                                </div>
+                            }
+                            <button class="btn btn-outline-secondary btn-sm mt-1" type="button" @onclick='() => mvpUserStories.Add("")'>
+                                <span class="bi bi-plus"></span> Hikaye Ekle
+                            </button>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-2 font-weight-bold d-block">Sprint Planı (3 Sprint)</label>
+                            @for (int i = 0; i < mvpSprintPlan.Count; i++)
+                            {
+                                var index = i;
+                                <div class="input-group input-group-sm mb-2">
+                                    <span class="input-group-text bg-light font-mono" style="font-size: 0.8rem;">Sprint #@(index+1)</span>
+                                    <input class="form-control form-control-sm" placeholder="Sprint hedefleri ve teslimatları..." @bind="mvpSprintPlan[index]" />
+                                    <button class="btn btn-outline-danger" type="button" @onclick="() => mvpSprintPlan.RemoveAt(index)">Sil</button>
+                                </div>
+                            }
+                            <button class="btn btn-outline-secondary btn-sm mt-1" type="button" @onclick='() => mvpSprintPlan.Add("")'>
+                                <span class="bi bi-plus"></span> Sprint Ekle
+                            </button>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">Teknoloji Önerileri (Tech Stack)</label>
+                            <textarea class="form-control form-control-sm" rows="3" placeholder="Önerilen frontend, backend, database ve DevOps altyapıları..." @bind="mvpTechStack"></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">Riskler</label>
+                            <textarea class="form-control form-control-sm" rows="3" placeholder="Teknolojik veya süreçsel MVP riskleri..." @bind="mvpRisks"></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1 font-weight-bold">İlk Satış / Pazara Giriş Planı</label>
+                            <textarea class="form-control form-control-sm" rows="3" placeholder="MVP'yi test edecek ilk müşterilere ulaşma stratejileri..." @bind="mvpFirstSalesPlan"></textarea>
+                        </div>
+
+                        <div class="col-12 text-end">
+                            <button class="btn btn-primary btn-sm px-4" style="background-color: #4f46e5; border-color: #4f46e5;" @onclick="SaveMVPPlan">Kaydet</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
         else if (activeTab == "ai_analysis")
         {
             @* AI Analiz Bölümü *@
@@ -809,6 +920,7 @@
     private MSC.IdeaForge.Application.Validations.DTOs.ValidationDto? validationDto;
     private MSC.IdeaForge.Application.Researches.DTOs.ResearchDto? researchDto;
     private IEnumerable<MSC.IdeaForge.Application.Solutions.DTOs.SolutionDto>? solutions;
+    private MSC.IdeaForge.Application.MVPPlans.DTOs.MVPPlanDto? mvpPlanDto;
     private MSC.IdeaForge.Domain.Entities.ProblemAnalysis? problemAnalysis;
     private bool isLoading = true;
     private bool isAnalyzing = false;
@@ -875,9 +987,20 @@
     private string newSolutionCons = "";
     private bool newSolutionIsRecommended = false;
 
+    // MVP planı form alanları
+    private string mvpScope = "";
+    private List<string> mvpUserStories = new();
+    private List<string> mvpSprintPlan = new();
+    private string mvpTechStack = "";
+    private string mvpRisks = "";
+    private string mvpFirstSalesPlan = "";
+    private bool isAiGeneratingMvp = false;
+    private string mvpSuccessMessage = "";
+    private string mvpErrorMessage = "";
+
     protected override async Task OnInitializedAsync()
     {
-        // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma, çözümler ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
+        // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma, çözümler, MVP planı ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
         try
         {
             problem = await GetProblemByIdHandler.HandleAsync(Id);
@@ -887,6 +1010,7 @@
             await LoadProblemAnalysis();
             await LoadResearch();
             await LoadSolutions();
+            await LoadMVPPlan();
         }
         catch
         {
@@ -909,6 +1033,8 @@
         researchErrorMessage = "";
         solutionSuccessMessage = "";
         solutionErrorMessage = "";
+        mvpSuccessMessage = "";
+        mvpErrorMessage = "";
     }
 
     private async Task LoadSignals()
@@ -1010,6 +1136,34 @@
         catch
         {
             solutions = new List<MSC.IdeaForge.Application.Solutions.DTOs.SolutionDto>();
+        }
+    }
+
+    private async Task LoadMVPPlan()
+    {
+        try
+        {
+            mvpPlanDto = await GetMVPPlanByProblemHandler.HandleAsync(Id);
+            if (mvpPlanDto is not null)
+            {
+                mvpScope = mvpPlanDto.Scope ?? "";
+                mvpUserStories = mvpPlanDto.UserStories ?? new();
+                mvpSprintPlan = mvpPlanDto.SprintPlan ?? new();
+                mvpTechStack = mvpPlanDto.TechStack ?? "";
+                mvpRisks = mvpPlanDto.Risks ?? "";
+                mvpFirstSalesPlan = mvpPlanDto.FirstSalesPlan ?? "";
+            }
+            else
+            {
+                mvpUserStories = new();
+                mvpSprintPlan = new();
+            }
+        }
+        catch
+        {
+            mvpPlanDto = null;
+            mvpUserStories = new();
+            mvpSprintPlan = new();
         }
     }
 
@@ -1317,11 +1471,69 @@
     }
 
     /// <summary>
-    /// Kriter puanlarının ağırlıklı ortalamasını hesaplar.
+    /// Yapay zeka ile otomatik MVP planı üretir.
     /// </summary>
-    private double CalculateCurrentTotalScore()
+    private async Task RunAiGenerateMVPPlan()
     {
-        return (severityScore * 3 + marketSizeScore * 2 + founderFitScore * 2 + riskScore * 1 + feasibilityScore * 2) / 10.0;
+        isAiGeneratingMvp = true;
+        mvpSuccessMessage = "";
+        mvpErrorMessage = "";
+
+        try
+        {
+            // Önerilen çözüm tipini veya en recommended çözümü bulup gönderiyoruz
+            var recommendedSolution = solutions?.FirstOrDefault(s => s.IsRecommended)?.SolutionType 
+                                      ?? solutions?.FirstOrDefault()?.SolutionType;
+
+            var command = new MSC.IdeaForge.Application.MVPPlans.Commands.GenerateMVPPlanCommand
+            {
+                ProblemId = Id,
+                SolutionType = recommendedSolution
+            };
+
+            await GenerateMVPPlanHandler.HandleAsync(command);
+            mvpSuccessMessage = "Yapay zeka detaylı MVP planını (kapsam, kullanıcı hikayeleri, sprint planı vb.) başarıyla oluşturdu ve kaydetti.";
+            await LoadMVPPlan();
+        }
+        catch (Exception ex)
+        {
+            mvpErrorMessage = $"Yapay zeka MVP planı oluştururken hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isAiGeneratingMvp = false;
+        }
+    }
+
+    /// <summary>
+    /// MVP Planı bilgilerini kaydeder.
+    /// </summary>
+    private async Task SaveMVPPlan()
+    {
+        mvpSuccessMessage = "";
+        mvpErrorMessage = "";
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.MVPPlans.Commands.SaveMVPPlanCommand
+            {
+                ProblemId = Id,
+                Scope = mvpScope,
+                UserStories = mvpUserStories,
+                SprintPlan = mvpSprintPlan,
+                TechStack = mvpTechStack,
+                Risks = mvpRisks,
+                FirstSalesPlan = mvpFirstSalesPlan
+            };
+
+            await SaveMVPPlanHandler.HandleAsync(command);
+            mvpSuccessMessage = "MVP planı başarıyla kaydedildi.";
+            await LoadMVPPlan();
+        }
+        catch (Exception ex)
+        {
+            mvpErrorMessage = $"MVP planı kaydedilirken hata oluştu: {ex.Message}";
+        }
     }
 
     /// <summary>
@@ -1552,4 +1764,12 @@
         "VeryHigh" => "bg-dark text-white",
         _ => "bg-secondary text-white"
     };
+
+    /// <summary>
+    /// Kriter puanlarının ağırlıklı ortalamasını hesaplar.
+    /// </summary>
+    private double CalculateCurrentTotalScore()
+    {
+        return (severityScore * 3 + marketSizeScore * 2 + founderFitScore * 2 + riskScore * 1 + feasibilityScore * 2) / 10.0;
+    }
 }

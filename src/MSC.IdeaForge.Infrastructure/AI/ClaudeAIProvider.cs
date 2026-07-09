@@ -165,4 +165,9 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
     {
         throw new NotImplementedException();
     }
+
+    public Task<MVPPlanResult> GenerateMVPPlanAsync(string title, string description, string? sector, string? solutionType)
+    {
+        throw new NotImplementedException();
+    }
 }
