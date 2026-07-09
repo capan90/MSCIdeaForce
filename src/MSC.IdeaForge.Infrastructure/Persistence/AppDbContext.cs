@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Research> Researches => Set<Research>();
     public DbSet<Solution> Solutions => Set<Solution>();
     public DbSet<MVPPlan> MVPPlans => Set<MVPPlan>();
+    public DbSet<KnowledgeEntry> KnowledgeEntries => Set<KnowledgeEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,6 +76,12 @@ public class AppDbContext : DbContext
         });
 
         modelBuilder.Entity<MVPPlan>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<KnowledgeEntry>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasQueryFilter(e => !e.IsDeleted);

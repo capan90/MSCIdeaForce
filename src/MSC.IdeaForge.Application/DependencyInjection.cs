@@ -14,6 +14,8 @@ using MSC.IdeaForge.Application.Solutions.Commands;
 using MSC.IdeaForge.Application.Solutions.Queries;
 using MSC.IdeaForge.Application.MVPPlans.Commands;
 using MSC.IdeaForge.Application.MVPPlans.Queries;
+using MSC.IdeaForge.Application.Knowledge.Commands;
+using MSC.IdeaForge.Application.Knowledge.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -64,6 +66,11 @@ public static class DependencyInjection
         services.AddScoped<SaveMVPPlanHandler>();
         services.AddScoped<GenerateMVPPlanHandler>();
         services.AddScoped<GetMVPPlanByProblemHandler>();
+
+        // Bilgi Bankası işleyicilerini ekliyoruz
+        services.AddScoped<CreateKnowledgeHandler>();
+        services.AddScoped<DeleteKnowledgeHandler>();
+        services.AddScoped<GetAllKnowledgeHandler>();
 
         return services;
     }

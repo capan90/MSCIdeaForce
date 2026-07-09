@@ -1,0 +1,351 @@
+@page "/knowledge"
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Domain.Enums
+@using MSC.IdeaForge.Application.Knowledge.DTOs
+@inject MSC.IdeaForge.Application.Knowledge.Queries.GetAllKnowledgeHandler GetAllKnowledgeHandler
+@inject MSC.IdeaForge.Application.Knowledge.Commands.CreateKnowledgeHandler CreateKnowledgeHandler
+@inject MSC.IdeaForge.Application.Knowledge.Commands.DeleteKnowledgeHandler DeleteKnowledgeHandler
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Bilgi Bankası</PageTitle>
+
+<div class="container mt-4">
+    @* Sayfa Başlığı ve Açıklaması *@
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Bilgi Bankası (Knowledge Base)</h1>
+            <p class="text-muted mb-0">Süreç boyunca edinilen tecrübeleri, pazar bulgularını ve kararları kaydedin.</p>
+        </div>
+    </div>
+
+    @* Filtreler ve Arama Alanı *@
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+        <div class="card-body p-3">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Arama</label>
+                    <input type="text" class="form-control form-control-sm" placeholder="Başlık veya içerikte ara..." @bind="searchQuery" @bind:event="oninput" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Kategori Filtresi</label>
+                    <select class="form-select form-select-sm" @bind="selectedCategoryFilter">
+                        <option value="">Tüm Kategoriler</option>
+                        <option value="LessonLearned">Edinilen Tecrübe (Lesson Learned)</option>
+                        <option value="SimilarProblem">Benzer Problem</option>
+                        <option value="SimilarProduct">Benzer Ürün</option>
+                        <option value="MarketInsight">Pazar Analizi (Market Insight)</option>
+                        <option value="TechInsight">Teknolojik Analiz (Tech Insight)</option>
+                        <option value="CustomerInsight">Müşteri Görüşü (Customer Insight)</option>
+                        <option value="Decision">Karar (Decision)</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-outline-secondary btn-sm w-100" @onclick="ClearFilters">
+                        <span class="bi bi-x-circle"></span> Filtreleri Temizle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Bilgi Bankası Girdileri Listesi *@
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Bilgi girdileri yükleniyor...</p>
+        </div>
+    }
+    else if (!FilteredEntries.Any())
+    {
+        <div class="alert alert-light text-center py-5 border shadow-sm" style="border-radius: 12px;">
+            <span class="display-6 text-muted mb-3 d-block"><span class="bi bi-info-circle"></span></span>
+            Aradığınız kriterlere uygun bir bilgi girdisi bulunamadı veya henüz eklenmemiş.
+        </div>
+    }
+    else
+    {
+        <div class="row g-3 mb-5">
+            @foreach (var entry in FilteredEntries)
+            {
+                <div class="col-md-4">
+                    <div class="card h-100 shadow-sm border-0" style="border-radius: 12px; overflow: hidden; background-color: #fff; border: 1px solid #e3e6f0;">
+                        <div class="card-header border-0 py-2.5 px-3 text-white d-flex justify-content-between align-items-center" style="background: @GetCategoryHeaderBg(entry.Category);">
+                            <span class="badge bg-white text-dark small">@GetCategoryText(entry.Category)</span>
+                            <span class="text-white-50 font-mono" style="font-size: 0.75rem;">@entry.LearnedAt.ToLocalTime().ToString("yyyy-MM-dd")</span>
+                        </div>
+                        <div class="card-body p-3 d-flex flex-column">
+                            <h5 class="card-title font-weight-bold text-dark mb-2" style="font-size: 1.1rem; line-height: 1.3;">@entry.Title</h5>
+                            <p class="card-text text-muted small flex-grow-1" style="line-height: 1.5;">
+                                @GetSummary(entry.Content)
+                            </p>
+
+                            @if (!string.IsNullOrEmpty(entry.Tags))
+                            {
+                                <div class="mt-2 mb-3">
+                                    @foreach (var tag in entry.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                    {
+                                        <span class="badge bg-light text-secondary me-1 font-weight-normal border">#@tag.Trim()</span>
+                                    }
+                                </div>
+                            }
+
+                            @if (entry.ProblemId.HasValue && problemsMap.TryGetValue(entry.ProblemId.Value, out var probTitle))
+                            {
+                                <div class="p-2 bg-light rounded text-muted mb-3 d-flex align-items-center gap-1.5" style="font-size: 0.75rem; border-left: 3px solid #6c757d;">
+                                    <span class="bi bi-link-45deg"></span> Problem: <strong class="text-dark">@probTitle</strong>
+                                </div>
+                            }
+                        </div>
+                        <div class="card-footer bg-light border-0 text-end p-2">
+                            <button class="btn btn-outline-danger btn-sm py-1 px-2.5" @onclick="() => DeleteEntry(entry.Id)" style="font-size: 0.8rem;">
+                                <span class="bi bi-trash"></span> Sil
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @* Yeni Bilgi Girdisi Ekleme Formu *@
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background-color: #fcfcfc; border: 1px solid #e3e6f0 !important;">
+        <div class="card-header bg-dark text-white py-3" style="border-bottom: none;">
+            <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                <span class="bi bi-plus-circle-fill"></span> Yeni Bilgi Girdisi Ekle
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            @if (successMessage != "")
+            {
+                <div class="alert alert-success py-2 mb-3 small">@successMessage</div>
+            }
+            @if (errorMessage != "")
+            {
+                <div class="alert alert-danger py-2 mb-3 small">@errorMessage</div>
+            }
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Başlık</label>
+                    <input class="form-control form-control-sm" placeholder="Bilgi başlığı..." @bind="newTitle" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Kategori</label>
+                    <select class="form-select form-select-sm" @bind="newCategory">
+                        <option value="@KnowledgeCategory.LessonLearned">Edinilen Tecrübe</option>
+                        <option value="@KnowledgeCategory.SimilarProblem">Benzer Problem</option>
+                        <option value="@KnowledgeCategory.SimilarProduct">Benzer Ürün</option>
+                        <option value="@KnowledgeCategory.MarketInsight">Pazar Analizi</option>
+                        <option value="@KnowledgeCategory.TechInsight">Teknolojik Analiz</option>
+                        <option value="@KnowledgeCategory.CustomerInsight">Müşteri Görüşü</option>
+                        <option value="@KnowledgeCategory.Decision">Karar</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">İlişkili Problem (İsteğe Bağlı)</label>
+                    <select class="form-select form-select-sm" @bind="newProblemIdString">
+                        <option value="">Problem Seçin (Yok)</option>
+                        @foreach (var prob in problems)
+                        {
+                            <option value="@prob.Id">@prob.Title</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Bilgi Kaynağı / Referans</label>
+                    <input class="form-control form-control-sm" placeholder="Örn: X Müşterisi Görüşmesi, Gartner Raporu vb." @bind="newSource" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Etiketler (Virgülle ayırın)</label>
+                    <input class="form-control form-control-sm" placeholder="Örn: saas, fiyatlandırma, altyapi" @bind="newTags" />
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label small text-muted mb-1 font-weight-bold">Bilgi İçeriği / Detayı</label>
+                    <textarea class="form-control form-control-sm" rows="4" placeholder="Edinilen tecrübeyi veya bilgi detayını detaylı şekilde buraya yazın..." @bind="newContent"></textarea>
+                </div>
+
+                <div class="col-12 text-end">
+                    <button class="btn btn-primary btn-sm px-4" @onclick="AddKnowledgeEntry">Kaydet</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<KnowledgeDto> entries = new List<KnowledgeDto>();
+    private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto> problems = new List<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>();
+    private Dictionary<Guid, string> problemsMap = new();
+    private bool isLoading = true;
+
+    // Arama ve Filtre State
+    private string searchQuery = "";
+    private string selectedCategoryFilter = "";
+
+    // Form Alanları
+    private string newTitle = "";
+    private string newContent = "";
+    private KnowledgeCategory newCategory = KnowledgeCategory.LessonLearned;
+    private string? newTags;
+    private string newProblemIdString = "";
+    private string? newSource;
+
+    private string successMessage = "";
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            entries = await GetAllKnowledgeHandler.HandleAsync();
+            problems = await GetProblemsHandler.HandleAsync();
+            problemsMap = problems.ToDictionary(p => p.Id, p => p.Title);
+        }
+        catch
+        {
+            entries = new List<KnowledgeDto>();
+            problems = new List<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ClearFilters()
+    {
+        searchQuery = "";
+        selectedCategoryFilter = "";
+    }
+
+    private async Task AddKnowledgeEntry()
+    {
+        successMessage = "";
+        errorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(newTitle) || string.IsNullOrWhiteSpace(newContent))
+        {
+            errorMessage = "Başlık ve İçerik alanları zorunludur.";
+            return;
+        }
+
+        try
+        {
+            Guid? problemId = null;
+            if (!string.IsNullOrEmpty(newProblemIdString) && Guid.TryParse(newProblemIdString, out var pId))
+            {
+                problemId = pId;
+            }
+
+            var command = new MSC.IdeaForge.Application.Knowledge.Commands.CreateKnowledgeCommand
+            {
+                Title = newTitle,
+                Content = newContent,
+                Category = newCategory,
+                Tags = newTags,
+                ProblemId = problemId,
+                Source = newSource,
+                LearnedAt = DateTime.UtcNow
+            };
+
+            await CreateKnowledgeHandler.HandleAsync(command);
+
+            // Form sıfırlama
+            newTitle = "";
+            newContent = "";
+            newCategory = KnowledgeCategory.LessonLearned;
+            newTags = "";
+            newProblemIdString = "";
+            newSource = "";
+
+            successMessage = "Bilgi bankası girdisi başarıyla eklendi.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Kayıt eklenirken hata oluştu: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteEntry(Guid id)
+    {
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Bu bilgi girdisini silmek istediğinize emin misiniz?");
+        if (confirmed)
+        {
+            successMessage = "";
+            errorMessage = "";
+            try
+            {
+                var command = new MSC.IdeaForge.Application.Knowledge.Commands.DeleteKnowledgeCommand { Id = id };
+                await DeleteKnowledgeHandler.HandleAsync(command);
+                successMessage = "Bilgi girdisi başarıyla silindi.";
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Bilgi silinirken hata oluştu: {ex.Message}";
+            }
+        }
+    }
+
+    // Filtrelenmiş liste
+    private IEnumerable<KnowledgeDto> FilteredEntries
+    {
+        get
+        {
+            var result = entries;
+
+            if (!string.IsNullOrWhiteSpace(selectedCategoryFilter))
+            {
+                result = result.Where(e => e.Category == selectedCategoryFilter);
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                var query = searchQuery.ToLower();
+                result = result.Where(e => e.Title.ToLower().Contains(query) || e.Content.ToLower().Contains(query));
+            }
+
+            return result;
+        }
+    }
+
+    private string GetSummary(string content)
+    {
+        if (string.IsNullOrEmpty(content)) return "";
+        return content.Length > 150 ? content.Substring(0, 150) + "..." : content;
+    }
+
+    private string GetCategoryText(string category) => category switch
+    {
+        "LessonLearned" => "Edinilen Tecrübe",
+        "SimilarProblem" => "Benzer Problem",
+        "SimilarProduct" => "Benzer Ürün",
+        "MarketInsight" => "Pazar Analizi",
+        "TechInsight" => "Teknolojik Analiz",
+        "CustomerInsight" => "Müşteri Görüşü",
+        "Decision" => "Karar",
+        _ => category
+    };
+
+    private string GetCategoryHeaderBg(string category) => category switch
+    {
+        "LessonLearned" => "linear-gradient(135deg, #198754, #146c43)", // Yeşil
+        "SimilarProblem" => "linear-gradient(135deg, #fd7e14, #ca6510)", // Turuncu
+        "SimilarProduct" => "linear-gradient(135deg, #0d6efd, #0b5ed7)", // Mavi
+        "MarketInsight" => "linear-gradient(135deg, #0dcaf0, #0bacbe)", // Cyan
+        "TechInsight" => "linear-gradient(135deg, #6f42c1, #59359a)", // Mor
+        "CustomerInsight" => "linear-gradient(135deg, #d63384, #ab296a)", // Pembe
+        "Decision" => "linear-gradient(135deg, #212529, #1c1f23)", // Koyu Gri
+        _ => "linear-gradient(135deg, #6c757d, #5c636a)"
+    };
+}
