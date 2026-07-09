@@ -1,3 +1,4 @@
+using MSC.IdeaForge.Domain.Entities;
 using MSC.IdeaForge.Domain.Interfaces;
 using MSC.IdeaForge.Domain.ValueObjects;
 
@@ -17,16 +18,18 @@ public class AnalyzeProblemCommand
 public class AnalyzeProblemHandler
 {
     private readonly IProblemRepository _repository;
+    private readonly IProblemAnalysisRepository _analysisRepository;
     private readonly IAIProvider _aiProvider;
 
-    public AnalyzeProblemHandler(IProblemRepository repository, IAIProvider aiProvider)
+    public AnalyzeProblemHandler(IProblemRepository repository, IProblemAnalysisRepository analysisRepository, IAIProvider aiProvider)
     {
         _repository = repository;
+        _analysisRepository = analysisRepository;
         _aiProvider = aiProvider;
     }
 
     /// <summary>
-    /// Problemi veri tabanından getirir, yapay zekaya analiz ettirir ve sonucu döner.
+    /// Problemi veri tabanından getirir, yapay zekaya analiz ettirir, sonucu veritabanına kaydeder ve döner.
     /// </summary>
     /// <param name="problemId">Analiz edilecek problemin benzersiz kimliği</param>
     /// <param name="cancellationToken">İptal belirteci</param>
@@ -47,6 +50,36 @@ public class AnalyzeProblemHandler
             problem.Description,
             problem.Sector
         );
+
+        // Sonucu veritabanına kaydediyoruz veya güncelliyoruz.
+        var problemAnalysis = await _analysisRepository.GetByProblemIdAsync(problemId, cancellationToken);
+        if (problemAnalysis is null)
+        {
+            problemAnalysis = ProblemAnalysis.Create(
+                problemId,
+                analysisResult.Summary,
+                analysisResult.SuggestedCategory,
+                analysisResult.SuggestedTags,
+                analysisResult.RiskLevel,
+                analysisResult.SolutionTypeSuggestion,
+                analysisResult.ConfidenceScore
+            );
+            await _analysisRepository.AddAsync(problemAnalysis, cancellationToken);
+        }
+        else
+        {
+            problemAnalysis.Update(
+                analysisResult.Summary,
+                analysisResult.SuggestedCategory,
+                analysisResult.SuggestedTags,
+                analysisResult.RiskLevel,
+                analysisResult.SolutionTypeSuggestion,
+                analysisResult.ConfidenceScore
+            );
+            await _analysisRepository.UpdateAsync(problemAnalysis, cancellationToken);
+        }
+
+        await _analysisRepository.SaveChangesAsync(cancellationToken);
 
         return analysisResult;
     }

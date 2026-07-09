@@ -7,9 +7,12 @@
 @inject MSC.IdeaForge.Application.Signals.Queries.GetSignalsByProblemHandler GetSignalsByProblemHandler
 @inject MSC.IdeaForge.Application.Signals.Commands.CreateSignalHandler CreateSignalHandler
 @inject MSC.IdeaForge.Application.Problems.Commands.AnalyzeProblemHandler AnalyzeProblemHandler
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemAnalysisHandler GetProblemAnalysisHandler
 @inject MSC.IdeaForge.Application.Opportunities.Queries.GetOpportunityByProblemHandler GetOpportunityByProblemHandler
 @inject MSC.IdeaForge.Application.Opportunities.Commands.ScoreOpportunityHandler ScoreOpportunityHandler
 @inject MSC.IdeaForge.Application.Opportunities.Commands.AIScoreOpportunityHandler AIScoreOpportunityHandler
+@inject MSC.IdeaForge.Application.Validations.Queries.GetValidationByProblemHandler GetValidationByProblemHandler
+@inject MSC.IdeaForge.Application.Validations.Commands.SaveValidationHandler SaveValidationHandler
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JsRuntime
 
@@ -47,7 +50,7 @@
     }
     else
     {
-        @* Sekme yapısı (Problem Detayı vs Sinyaller vs Fırsat Skoru vs AI Analizi) *@
+        @* Sekme yapısı (Problem Detayı vs Sinyaller vs Fırsat Skoru vs Doğrulama vs AI Analizi) *@
         <ul class="nav nav-tabs mb-4">
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "detail" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("detail")'>Detay Bilgileri</button>
@@ -57,6 +60,9 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "opportunity" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("opportunity")'>Fırsat Skoru</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "validation" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("validation")'>Doğrulama</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "ai_analysis" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("ai_analysis")'>AI Analizi</button>
@@ -352,6 +358,81 @@
                 </div>
             </div>
         }
+        else if (activeTab == "validation")
+        {
+            @* Doğrulama Değerlendirme Bölümü *@
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #0dcaf0, #0d6efd); border-bottom: none;">
+                    <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                        <span class="bi bi-shield-check"></span> Problem Doğrulama (Validation)
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (validationSuccessMessage != "")
+                    {
+                        <div class="alert alert-success py-2 mb-3 small">@validationSuccessMessage</div>
+                    }
+                    @if (validationErrorMessage != "")
+                    {
+                        <div class="alert alert-danger py-2 mb-3 small">@validationErrorMessage</div>
+                    }
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted mb-1">Görüşme Sayısı</label>
+                            <input type="number" class="form-control form-control-sm" min="0" @bind="interviewCount" @bind:after="OnValidationCountChanged" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted mb-1">Doğrulayan Kişi Sayısı</label>
+                            <input type="number" class="form-control form-control-sm" min="0" max="@interviewCount" @bind="validatedUserCount" @bind:after="OnValidationCountChanged" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted mb-1">Ödeme İsteği Sayısı</label>
+                            <input type="number" class="form-control form-control-sm" min="0" max="@validatedUserCount" @bind="willingToPayCount" @bind:after="OnValidationCountChanged" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted mb-1">Güven Skoru (%): @confidenceScore</label>
+                            <input type="range" class="form-range" min="1" max="100" @bind="confidenceScore" disabled />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted mb-1">Doğrulama Durumu</label>
+                            <select class="form-select form-select-sm" @bind="validationStatus">
+                                <option value="@ValidationStatus.NotStarted">Başlatılmadı</option>
+                                <option value="@ValidationStatus.InProgress">Devam Ediyor</option>
+                                <option value="@ValidationStatus.Validated">Doğrulandı</option>
+                                <option value="@ValidationStatus.Rejected">Reddedildi</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            @* Doğrulama oranı gösterimi *@
+                            <div class="p-3 bg-light rounded d-flex justify-content-between align-items-center">
+                                <span class="font-weight-bold text-muted small text-uppercase">Doğrulama Oranı</span>
+                                <span class="h4 font-weight-bold text-primary mb-0">
+                                    @(interviewCount > 0 ? $"% {Math.Round((double)validatedUserCount / interviewCount * 100, 1)}" : "% 0")
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1">Riskler</label>
+                            <textarea class="form-control form-control-sm" rows="3" placeholder="Sürece dair riskler ve engeller..." @bind="validationRisks"></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1">Doğrulama Notları</label>
+                            <textarea class="form-control form-control-sm" rows="3" placeholder="Görüşmelerden edinilen geri bildirim notları..." @bind="validationNotes"></textarea>
+                        </div>
+
+                        <div class="col-12 text-end">
+                            <button class="btn btn-primary btn-sm px-4" @onclick="SaveValidation">Kaydet</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
         else if (activeTab == "ai_analysis")
         {
             @* AI Analiz Bölümü *@
@@ -369,7 +450,7 @@
                             <p class="mt-2 text-muted">Yapay zeka problemi analiz ediyor, lütfen bekleyin...</p>
                         </div>
                     }
-                    else if (analysisResult is null)
+                    else if (problemAnalysis is null)
                     {
                         <div class="text-center py-5">
                             @if (!string.IsNullOrEmpty(aiErrorMessage))
@@ -392,7 +473,7 @@
                         <div class="mb-4">
                             <h6 class="font-weight-bold mb-2" style="color: #6f42c1;">Yapay Zeka Özeti</h6>
                             <div class="p-3 bg-light rounded" style="line-height: 1.6; border-left: 4px solid #6f42c1; color: #495057;">
-                                @analysisResult.Summary
+                                @problemAnalysis.Summary
                             </div>
                         </div>
 
@@ -400,34 +481,37 @@
                             <div class="col-sm-6">
                                 <div class="p-3 bg-light rounded h-100">
                                     <span class="text-muted d-block small">Önerilen Kategori</span>
-                                    <span class="font-weight-bold text-dark mt-1 d-block">@analysisResult.SuggestedCategory</span>
+                                    <span class="font-weight-bold text-dark mt-1 d-block">@problemAnalysis.SuggestedCategory</span>
                                 </div>
                             </div>
                             <div class="col-sm-6">
                                 <div class="p-3 bg-light rounded h-100">
                                     <span class="text-muted d-block small">Önerilen Etiketler</span>
-                                    <span class="font-weight-bold text-dark mt-1 d-block">@analysisResult.SuggestedTags</span>
+                                    <span class="font-weight-bold text-dark mt-1 d-block">@problemAnalysis.SuggestedTags</span>
                                 </div>
                             </div>
                             <div class="col-sm-6">
                                 <div class="p-3 bg-light rounded h-100">
                                     <span class="text-muted d-block small">Risk Seviyesi</span>
-                                    <span class="badge @GetRiskLevelBadgeClass(analysisResult.RiskLevel) mt-1 px-2.5 py-1.5" style="font-size: 0.9rem;">
-                                        @GetRiskLevelText(analysisResult.RiskLevel)
+                                    <span class="badge @GetRiskLevelBadgeClass(problemAnalysis.RiskLevel) mt-1 px-2.5 py-1.5" style="font-size: 0.9rem;">
+                                        @GetRiskLevelText(problemAnalysis.RiskLevel)
                                     </span>
                                 </div>
                             </div>
                             <div class="col-sm-6">
                                 <div class="p-3 bg-light rounded h-100">
                                     <span class="text-muted d-block small">Güven Skoru</span>
-                                    <span class="font-weight-bold text-dark mt-1 d-block">%@(Math.Round(analysisResult.ConfidenceScore * 100))</span>
+                                    <span class="font-weight-bold text-dark mt-1 d-block">%@(Math.Round(problemAnalysis.ConfidenceScore * 100))</span>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="p-3 bg-light rounded">
                                     <span class="text-muted d-block small">Çözüm Tipi Önerisi</span>
-                                    <span class="font-weight-bold text-dark mt-1 d-block" style="white-space: pre-wrap; line-height: 1.5;">@analysisResult.SolutionTypeSuggestion</span>
+                                    <span class="font-weight-bold text-dark mt-1 d-block" style="white-space: pre-wrap; line-height: 1.5;">@problemAnalysis.SolutionTypeSuggestion</span>
                                 </div>
+                            </div>
+                            <div class="col-12">
+                                <span class="text-muted small" style="font-size: 0.8rem;">Son Analiz Tarihi: @problemAnalysis.AnalyzedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</span>
                             </div>
                         </div>
 
@@ -450,7 +534,8 @@
     private MSC.IdeaForge.Application.Problems.DTOs.ProblemDto? problem;
     private IEnumerable<MSC.IdeaForge.Application.Signals.DTOs.SignalDto>? signals;
     private MSC.IdeaForge.Application.Opportunities.DTOs.OpportunityDto? opportunity;
-    private MSC.IdeaForge.Domain.ValueObjects.ProblemAnalysisResult? analysisResult;
+    private MSC.IdeaForge.Application.Validations.DTOs.ValidationDto? validationDto;
+    private MSC.IdeaForge.Domain.Entities.ProblemAnalysis? problemAnalysis;
     private bool isLoading = true;
     private bool isAnalyzing = false;
     private bool isAiOpportunityScoring = false;
@@ -481,14 +566,27 @@
     private string riskReason = "";
     private string feasibilityReason = "";
 
+    // Doğrulama form alanları
+    private int interviewCount = 0;
+    private int validatedUserCount = 0;
+    private int willingToPayCount = 0;
+    private int confidenceScore = 1;
+    private string validationNotes = "";
+    private string validationRisks = "";
+    private ValidationStatus validationStatus = ValidationStatus.NotStarted;
+    private string validationSuccessMessage = "";
+    private string validationErrorMessage = "";
+
     protected override async Task OnInitializedAsync()
     {
-        // Sayfa yüklendiğinde problemi, sinyalleri ve fırsat skorlarını getirmek için sorguları tetikliyoruz.
+        // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
         try
         {
             problem = await GetProblemByIdHandler.HandleAsync(Id);
             await LoadSignals();
             await LoadOpportunity();
+            await LoadValidation();
+            await LoadProblemAnalysis();
         }
         catch
         {
@@ -505,6 +603,8 @@
         activeTab = tab;
         opportunitySuccessMessage = "";
         opportunityErrorMessage = "";
+        validationSuccessMessage = "";
+        validationErrorMessage = "";
     }
 
     private async Task LoadSignals()
@@ -537,6 +637,43 @@
         catch
         {
             opportunity = null;
+        }
+    }
+
+    private async Task LoadValidation()
+    {
+        try
+        {
+            validationDto = await GetValidationByProblemHandler.HandleAsync(Id);
+            if (validationDto is not null)
+            {
+                interviewCount = validationDto.InterviewCount;
+                validatedUserCount = validationDto.ValidatedUserCount;
+                willingToPayCount = validationDto.WillingToPayCount;
+                confidenceScore = validationDto.ConfidenceScore;
+                validationNotes = validationDto.Notes ?? "";
+                validationRisks = validationDto.Risks ?? "";
+                if (Enum.TryParse<ValidationStatus>(validationDto.Status, out var status))
+                {
+                    validationStatus = status;
+                }
+            }
+        }
+        catch
+        {
+            validationDto = null;
+        }
+    }
+
+    private async Task LoadProblemAnalysis()
+    {
+        try
+        {
+            problemAnalysis = await GetProblemAnalysisHandler.HandleAsync(Id);
+        }
+        catch
+        {
+            problemAnalysis = null;
         }
     }
 
@@ -616,6 +753,65 @@
     }
 
     /// <summary>
+    /// Doğrulama değerleri değiştiğinde sınır kontrollerini yapıp otomatik güven skorunu günceller.
+    /// </summary>
+    private void OnValidationCountChanged()
+    {
+        if (interviewCount < 0) interviewCount = 0;
+        if (validatedUserCount < 0) validatedUserCount = 0;
+        if (willingToPayCount < 0) willingToPayCount = 0;
+
+        if (validatedUserCount > interviewCount) validatedUserCount = interviewCount;
+        if (willingToPayCount > validatedUserCount) willingToPayCount = validatedUserCount;
+
+        if (interviewCount > 0)
+        {
+            confidenceScore = (int)Math.Round((double)validatedUserCount / interviewCount * 100);
+            if (confidenceScore < 1) confidenceScore = 1;
+            if (confidenceScore > 100) confidenceScore = 100;
+        }
+        else
+        {
+            confidenceScore = 1;
+        }
+    }
+
+    /// <summary>
+    /// Doğrulama bilgilerini kaydeder.
+    /// </summary>
+    private async Task SaveValidation()
+    {
+        validationSuccessMessage = "";
+        validationErrorMessage = "";
+
+        // Değer sınırlarını kontrol ediyoruz.
+        OnValidationCountChanged();
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Validations.Commands.SaveValidationCommand
+            {
+                ProblemId = Id,
+                InterviewCount = interviewCount,
+                ValidatedUserCount = validatedUserCount,
+                WillingToPayCount = willingToPayCount,
+                ConfidenceScore = confidenceScore,
+                Notes = validationNotes,
+                Risks = validationRisks,
+                Status = validationStatus
+            };
+
+            await SaveValidationHandler.HandleAsync(command);
+            validationSuccessMessage = "Doğrulama verileri başarıyla kaydedildi.";
+            await LoadValidation();
+        }
+        catch (Exception ex)
+        {
+            validationErrorMessage = $"Doğrulama verileri kaydedilirken hata oluştu: {ex.Message}";
+        }
+    }
+
+    /// <summary>
     /// Kriter puanlarının ağırlıklı ortalamasını hesaplar.
     /// </summary>
     private double CalculateCurrentTotalScore()
@@ -624,7 +820,7 @@
     }
 
     /// <summary>
-    /// Yapay Zeka analizini başlatır.
+    /// Yapay Zeka analizini başlatır ve veritabanına kaydeder.
     /// </summary>
     private async Task RunAiAnalysis()
     {
@@ -632,7 +828,8 @@
         aiErrorMessage = "";
         try
         {
-            analysisResult = await AnalyzeProblemHandler.HandleAsync(Id);
+            await AnalyzeProblemHandler.HandleAsync(Id);
+            await LoadProblemAnalysis();
         }
         catch (Exception ex)
         {

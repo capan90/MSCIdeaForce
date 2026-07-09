@@ -5,6 +5,8 @@ using MSC.IdeaForge.Application.Signals.Commands;
 using MSC.IdeaForge.Application.Signals.Queries;
 using MSC.IdeaForge.Application.Opportunities.Commands;
 using MSC.IdeaForge.Application.Opportunities.Queries;
+using MSC.IdeaForge.Application.Validations.Commands;
+using MSC.IdeaForge.Application.Validations.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -26,11 +28,16 @@ public static class DependencyInjection
 
         // Problem yapay zeka analizi komut işleyicisini ekliyoruz
         services.AddScoped<AnalyzeProblemHandler>();
+        services.AddScoped<GetProblemAnalysisHandler>();
 
         // Fırsat puanlama ve sorgulama işleyicilerini ekliyoruz
         services.AddScoped<ScoreOpportunityHandler>();
         services.AddScoped<GetOpportunityByProblemHandler>();
         services.AddScoped<AIScoreOpportunityHandler>();
+
+        // Doğrulama işleyicilerini ekliyoruz
+        services.AddScoped<SaveValidationHandler>();
+        services.AddScoped<GetValidationByProblemHandler>();
 
         return services;
     }

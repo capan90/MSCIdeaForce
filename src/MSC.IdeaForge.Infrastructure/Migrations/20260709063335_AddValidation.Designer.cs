@@ -3,6 +3,7 @@ using System;
 using MSC.IdeaForge.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MSC.IdeaForge.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260709063335_AddValidation")]
+    partial class AddValidation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -111,64 +114,6 @@ namespace MSC.IdeaForge.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Problems");
-                });
-
-            modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.ProblemAnalysis", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("AnalyzedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double>("ConfidenceScore")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("ProblemId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("RiskLevel")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SolutionTypeSuggestion")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SuggestedCategory")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SuggestedTags")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Summary")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ProblemAnalyses");
                 });
 
             modelBuilder.Entity("MSC.IdeaForge.Domain.Entities.Signal", b =>

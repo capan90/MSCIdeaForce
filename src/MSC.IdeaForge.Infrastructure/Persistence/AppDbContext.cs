@@ -10,6 +10,8 @@ public class AppDbContext : DbContext
     public DbSet<Problem> Problems => Set<Problem>();
     public DbSet<Signal> Signals => Set<Signal>();
     public DbSet<Opportunity> Opportunities => Set<Opportunity>();
+    public DbSet<Validation> Validations => Set<Validation>();
+    public DbSet<ProblemAnalysis> ProblemAnalyses => Set<ProblemAnalysis>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,6 +45,18 @@ public class AppDbContext : DbContext
                 score.Property(s => s.RiskScore).HasColumnName("RiskScore");
                 score.Property(s => s.TechnicalFeasibility).HasColumnName("TechnicalFeasibility");
             });
+        });
+
+        modelBuilder.Entity<Validation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<ProblemAnalysis>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }
 }
