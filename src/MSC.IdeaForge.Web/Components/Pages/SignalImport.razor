@@ -1,0 +1,301 @@
+@page "/signal-import"
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Application.Signals.DTOs
+@inject MSC.IdeaForge.Application.Signals.Queries.GetImportedSignalsHandler GetImportedSignalsHandler
+@inject MSC.IdeaForge.Application.Signals.Commands.ImportRSSHandler ImportRSSHandler
+@inject MSC.IdeaForge.Application.Signals.Commands.ProcessImportedSignalHandler ProcessImportedSignalHandler
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Sinyal İçe Aktar</PageTitle>
+
+<div class="container mt-4">
+    @* Sayfa Başlığı *@
+    <div class="mb-4">
+        <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Sinyal İçe Aktar (Signal Import)</h1>
+        <p class="text-muted mb-0">RSS akışları üzerinden dış kaynaklı problem sinyallerini toplayın ve probleme dönüştürün veya bağlayın.</p>
+    </div>
+
+    @* RSS İçe Aktarma Formu *@
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0 !important;">
+        <div class="card-header bg-dark text-white py-3">
+            <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                <span class="bi bi-rss-fill"></span> RSS Beslemesi İçe Aktar
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            @if (importSuccessMessage != "")
+            {
+                <div class="alert alert-success py-2 mb-3 small">@importSuccessMessage</div>
+            }
+            @if (importErrorMessage != "")
+            {
+                <div class="alert alert-danger py-2 mb-3 small">@importErrorMessage</div>
+            }
+
+            <div class="row g-3">
+                <div class="col-md-9">
+                    <input type="text" class="form-control form-control-sm" placeholder="RSS veya Atom XML URL adresi girin (Örn: https://news.ycombinator.com/rss)..." @bind="rssUrl" />
+                </div>
+                <div class="col-md-3">
+                    @if (isImporting)
+                    {
+                        <button class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-2" disabled>
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            İçe aktarılıyor...
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary btn-sm w-100" @onclick="ImportRss">İçe Aktar</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* İçe Aktarılan Sinyaller Listesi *@
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0 !important;">
+        <div class="card-header bg-light py-3 border-0">
+            <h5 class="m-0 font-weight-bold text-dark">Toplanan Ham Sinyaller</h5>
+        </div>
+        <div class="card-body p-0">
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted small">Sinyaller yükleniyor...</p>
+                </div>
+            }
+            else if (!importedSignals.Any())
+            {
+                <div class="alert alert-light text-center py-5 m-3 border" style="border-radius: 8px;">
+                    Henüz içe aktarılmış bir ham sinyal bulunmamaktadır.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                        <thead class="table-light text-muted small text-uppercase">
+                            <tr>
+                                <th style="width: 35%;">Başlık / Özet</th>
+                                <th style="width: 10%;">Kaynak</th>
+                                <th style="width: 15%;">İçe Aktarma Tarihi</th>
+                                <th style="width: 10%;">İşlendi mi?</th>
+                                <th style="width: 30%;" class="text-end">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var sig in importedSignals)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="font-weight-bold text-dark">@sig.Title</div>
+                                        <div class="text-muted small text-truncate" style="max-width: 350px;">
+                                            @(string.IsNullOrEmpty(sig.Summary) ? sig.RawContent : sig.Summary)
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(sig.SourceUrl))
+                                        {
+                                            <a href="@sig.SourceUrl" target="_blank" class="small text-decoration-none text-primary font-mono" style="font-size: 0.75rem;">
+                                                <span class="bi bi-link-45deg"></span> Kaynağa Git
+                                            </a>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">@sig.SourceType</span>
+                                    </td>
+                                    <td class="font-mono text-muted small">
+                                        @sig.ImportedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                    </td>
+                                    <td>
+                                        @if (sig.IsProcessed)
+                                        {
+                                            <span class="badge bg-success">Evet</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">Hayır</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        @if (!sig.IsProcessed)
+                                        {
+                                            <div class="d-flex align-items-center justify-content-end gap-1.5">
+                                                <button class="btn btn-outline-success btn-xs py-1 px-2 small" @onclick="() => CreateProblem(sig.Id)" style="font-size: 0.8rem;">
+                                                    Problem Oluştur
+                                                </button>
+                                                
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <select class="form-select form-select-xs" style="max-width: 160px; font-size: 0.8rem; padding: 0.25rem;" @bind="selectedProblems[sig.Id]">
+                                                        <option value="">Probleme Bağla...</option>
+                                                        @foreach (var prob in problems)
+                                                        {
+                                                            <option value="@prob.Id">@prob.Title</option>
+                                                        }
+                                                    </select>
+                                                    <button class="btn btn-outline-secondary btn-xs py-1 px-2" @onclick="() => LinkToProblem(sig.Id)" style="font-size: 0.8rem;">
+                                                        Bağla
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
+                                        else if (sig.ProblemId.HasValue && problemsMap.TryGetValue(sig.ProblemId.Value, out var pTitle))
+                                        {
+                                            <span class="text-muted small">
+                                                İlişkili Problem: <strong class="text-dark">@pTitle</strong>
+                                            </span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<ImportedSignalDto> importedSignals = new List<ImportedSignalDto>();
+    private IEnumerable<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto> problems = new List<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>();
+    private Dictionary<Guid, string> problemsMap = new();
+    private Dictionary<Guid, string> selectedProblems = new();
+    private bool isLoading = true;
+    private bool isImporting = false;
+    private string rssUrl = "";
+
+    private string importSuccessMessage = "";
+    private string importErrorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            importedSignals = await GetImportedSignalsHandler.HandleAsync();
+            problems = await GetProblemsHandler.HandleAsync();
+            problemsMap = problems.ToDictionary(p => p.Id, p => p.Title);
+
+            // Her sinyal için dropdown eşleşmesini boş olarak başlatıyoruz
+            selectedProblems = importedSignals.ToDictionary(s => s.Id, s => "");
+        }
+        catch
+        {
+            importedSignals = new List<ImportedSignalDto>();
+            problems = new List<MSC.IdeaForge.Application.Problems.DTOs.ProblemDto>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ImportRss()
+    {
+        importSuccessMessage = "";
+        importErrorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(rssUrl))
+        {
+            importErrorMessage = "Lütfen geçerli bir RSS URL adresi girin.";
+            return;
+        }
+
+        isImporting = true;
+        StateHasChanged();
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Signals.Commands.ImportRSSCommand { RssUrl = rssUrl };
+            await ImportRSSHandler.HandleAsync(command);
+            importSuccessMessage = "RSS beslemesindeki yeni sinyaller başarıyla içe aktarıldı.";
+            rssUrl = "";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            importErrorMessage = $"İçe aktarma sırasında hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isImporting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateProblem(Guid importedSignalId)
+    {
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Bu sinyalden yeni bir problem ve yapay zeka analizi oluşturmak istediğinize emin misiniz?");
+        if (confirmed)
+        {
+            importSuccessMessage = "";
+            importErrorMessage = "";
+            isLoading = true;
+            StateHasChanged();
+
+            try
+            {
+                var command = new MSC.IdeaForge.Application.Signals.Commands.ProcessImportedSignalCommand
+                {
+                    ImportedSignalId = importedSignalId,
+                    ProblemId = null
+                };
+
+                await ProcessImportedSignalHandler.HandleAsync(command);
+                importSuccessMessage = "Sinyal başarıyla yeni bir probleme dönüştürüldü ve arka planda yapay zeka ön analizi yapıldı.";
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                importErrorMessage = $"Problem oluşturulurken hata oluştu: {ex.Message}";
+            }
+            finally
+            {
+                isLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task LinkToProblem(Guid importedSignalId)
+    {
+        if (!selectedProblems.TryGetValue(importedSignalId, out var probIdStr) || string.IsNullOrEmpty(probIdStr) || !Guid.TryParse(probIdStr, out var probId))
+        {
+            await JsRuntime.InvokeVoidAsync("alert", "Lütfen bağlamak istediğiniz problemi seçin.");
+            return;
+        }
+
+        importSuccessMessage = "";
+        importErrorMessage = "";
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Signals.Commands.ProcessImportedSignalCommand
+            {
+                ImportedSignalId = importedSignalId,
+                ProblemId = probId
+            };
+
+            await ProcessImportedSignalHandler.HandleAsync(command);
+            importSuccessMessage = "Sinyal başarıyla seçilen probleme kaynak sinyal olarak bağlandı.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            importErrorMessage = $"Probleme bağlama sırasında hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

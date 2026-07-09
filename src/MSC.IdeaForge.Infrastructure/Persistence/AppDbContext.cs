@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<Solution> Solutions => Set<Solution>();
     public DbSet<MVPPlan> MVPPlans => Set<MVPPlan>();
     public DbSet<KnowledgeEntry> KnowledgeEntries => Set<KnowledgeEntry>();
+    public DbSet<ImportedSignal> ImportedSignals => Set<ImportedSignal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -82,6 +83,12 @@ public class AppDbContext : DbContext
         });
 
         modelBuilder.Entity<KnowledgeEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<ImportedSignal>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasQueryFilter(e => !e.IsDeleted);

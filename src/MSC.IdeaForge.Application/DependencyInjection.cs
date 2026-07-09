@@ -17,6 +17,7 @@ using MSC.IdeaForge.Application.MVPPlans.Queries;
 using MSC.IdeaForge.Application.Knowledge.Commands;
 using MSC.IdeaForge.Application.Knowledge.Queries;
 using MSC.IdeaForge.Application.Agents;
+using MSC.IdeaForge.Application.Signals.Services;
 
 namespace MSC.IdeaForge.Application;
 
@@ -75,6 +76,12 @@ public static class DependencyInjection
 
         // AI Ajan Koordinatörü
         services.AddScoped<AgentCoordinator>();
+
+        // Sinyal İçe Aktarım işleyicileri
+        services.AddScoped<ImportRSSHandler>();
+        services.AddScoped<ProcessImportedSignalHandler>();
+        services.AddScoped<GetImportedSignalsHandler>();
+        services.AddScoped<RSSImporter>();
 
         return services;
     }
