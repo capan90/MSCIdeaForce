@@ -3,6 +3,7 @@
 @inject MSC.IdeaForge.Application.Dashboard.DashboardQueryHandler DashboardQueryHandler
 @inject NavigationManager NavigationManager
 @inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+@inject MSC.IdeaForge.Application.Problems.Commands.CreateProblemHandler CreateProblemHandler
 
 <PageTitle>Dashboard - MSC IdeaForge</PageTitle>
 
@@ -11,6 +12,45 @@
         <div>
             <h1 class="h3 font-weight-bold text-dark mb-1">Yönetim Paneli</h1>
             <p class="text-muted small mb-0">MSC IdeaForge genel durum göstergeleri ve özet verileri</p>
+        </div>
+    </div>
+
+    @* Hızlı Problem Ekleme Formu *@
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; border: 1px solid #e3e6f0 !important; background-color: #f8f9fc;">
+        <div class="card-body py-2.5 px-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-1">
+                    <span class="bi bi-lightning-charge-fill text-warning" style="font-size: 1.2rem;"></span>
+                </div>
+                <div class="col-md-4">
+                    <input class="form-control form-control-sm" placeholder="Problem başlığı..." @bind="quickTitle" />
+                </div>
+                <div class="col-md-3">
+                    <input class="form-control form-control-sm" placeholder="Sektör (opsiyonel)" @bind="quickSector" />
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary btn-sm w-100" @onclick="QuickAddProblem" disabled="@isQuickAdding">
+                        @if (isQuickAdding)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        }
+                        else
+                        {
+                            <span>⚡ Hızlı Ekle</span>
+                        }
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    @if (!string.IsNullOrEmpty(quickMessage))
+                    {
+                        <span class="text-success small">@quickMessage</span>
+                    }
+                    @if (!string.IsNullOrEmpty(quickError))
+                    {
+                        <span class="text-danger small">@quickError</span>
+                    }
+                </div>
+            </div>
         </div>
     </div>
 
@@ -308,6 +348,12 @@
     private Dictionary<string, int> sectorDistribution = new();
     private Dictionary<string, int> statusDistribution = new();
 
+    private bool isQuickAdding = false;
+    private string quickTitle = "";
+    private string quickSector = "";
+    private string quickMessage = "";
+    private string quickError = "";
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -338,6 +384,61 @@
         finally
         {
             isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Dashboard üzerinden hızlı problem ekleme işlemi.
+    /// </summary>
+    private async Task QuickAddProblem()
+    {
+        quickMessage = "";
+        quickError = "";
+
+        if (string.IsNullOrWhiteSpace(quickTitle))
+        {
+            quickError = "Başlık zorunludur.";
+            return;
+        }
+
+        isQuickAdding = true;
+        try
+        {
+            var command = new MSC.IdeaForge.Application.Problems.Commands.CreateProblemCommand
+            {
+                Title = quickTitle,
+                Description = quickTitle, // Hızlı ekleme için başlığı açıklama olarak da kullanıyoruz
+                Sector = quickSector
+            };
+            await CreateProblemHandler.HandleAsync(command);
+            quickTitle = "";
+            quickSector = "";
+            quickMessage = "Eklendi ✓";
+
+            // Dashboard verilerini yeniden yükle
+            data = await DashboardQueryHandler.HandleAsync(new MSC.IdeaForge.Application.Dashboard.DashboardQuery());
+            var allProblems = await GetProblemsHandler.HandleAsync();
+            totalProblems = allProblems.Count();
+            sectorDistribution = allProblems
+                .GroupBy(p => string.IsNullOrWhiteSpace(p.Sector) ? "Belirtilmemiş" : p.Sector)
+                .ToDictionary(g => g.Key, g => g.Count());
+            statusDistribution = new Dictionary<string, int>
+            {
+                { "Draft", allProblems.Count(p => p.Status == "Draft") },
+                { "Discovered", allProblems.Count(p => p.Status == "Discovered") },
+                { "Analyzed", allProblems.Count(p => p.Status == "Analyzed") },
+                { "Validated", allProblems.Count(p => p.Status == "Validated") },
+                { "Archived", allProblems.Count(p => p.Status == "Archived") }
+            };
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            quickError = $"Hata: {ex.Message}";
+        }
+        finally
+        {
+            isQuickAdding = false;
         }
     }
 

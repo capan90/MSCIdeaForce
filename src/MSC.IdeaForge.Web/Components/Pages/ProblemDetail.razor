@@ -31,6 +31,7 @@
 @inject MSC.IdeaForge.Application.Problems.Commands.UpdateProblemHandler UpdateProblemHandler
 @inject MSC.IdeaForge.Application.Decisions.Commands.CreateDecisionHandler CreateDecisionHandler
 @inject MSC.IdeaForge.Application.Decisions.Queries.GetDecisionsByProblemHandler GetDecisionsByProblemHandler
+@inject MSC.IdeaForge.Application.Problems.Commands.UpdateProblemPriorityHandler UpdateProblemPriorityHandler
 
 <PageTitle>Problem Detayı</PageTitle>
 
@@ -163,7 +164,12 @@
                             <div class="col-sm-6">
                                 <div class="p-3 bg-light rounded h-100">
                                     <span class="text-muted d-block small">Öncelik</span>
-                                    <span class="badge bg-info text-dark mt-1 px-2.5 py-1.5" style="font-size: 0.9rem;">@GetPriorityText(problem.Priority)</span>
+                                    <select class="form-select form-select-sm mt-1" value="@problem.Priority" @onchange="OnPriorityChanged" style="max-width: 180px;">
+                                        <option value="Low">Düşük</option>
+                                        <option value="Medium">Orta</option>
+                                        <option value="High">Yüksek</option>
+                                        <option value="Critical">Kritik</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="col-sm-6">
@@ -1833,6 +1839,34 @@
             catch (Exception ex)
             {
                 await JsRuntime.InvokeVoidAsync("alert", $"Durum güncellenirken hata oluştu: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Öncelik değiştiğinde otomatik kaydeder.
+    /// </summary>
+    private async Task OnPriorityChanged(ChangeEventArgs e)
+    {
+        var priorityStr = e.Value?.ToString();
+        if (Enum.TryParse<MSC.IdeaForge.Domain.Enums.PriorityLevel>(priorityStr, out var newPriority))
+        {
+            try
+            {
+                var command = new MSC.IdeaForge.Application.Problems.Commands.UpdateProblemPriorityCommand
+                {
+                    ProblemId = Id,
+                    Priority = newPriority
+                };
+                await UpdateProblemPriorityHandler.HandleAsync(command);
+                if (problem is not null)
+                {
+                    problem.Priority = newPriority.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                await JsRuntime.InvokeVoidAsync("alert", $"Öncelik güncellenirken hata oluştu: {ex.Message}");
             }
         }
     }

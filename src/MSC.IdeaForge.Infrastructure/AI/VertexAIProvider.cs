@@ -191,4 +191,10 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
     {
         throw new NotImplementedException();
     }
+
+    // Sektör analizi bu sağlayıcıda henüz uygulanmadı; şu an yalnızca Gemini destekler.
+    public Task<SectorAnalysisResult> AnalyzeSectorAsync(string sector)
+    {
+        throw new NotImplementedException();
+    }
 }

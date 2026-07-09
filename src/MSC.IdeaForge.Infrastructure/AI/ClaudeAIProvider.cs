@@ -170,4 +170,10 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
     {
         throw new NotImplementedException();
     }
+
+    // Sektör analizi bu sağlayıcıda henüz uygulanmadı; şu an yalnızca Gemini destekler.
+    public Task<SectorAnalysisResult> AnalyzeSectorAsync(string sector)
+    {
+        throw new NotImplementedException();
+    }
 }

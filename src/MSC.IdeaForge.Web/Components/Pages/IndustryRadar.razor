@@ -1,0 +1,253 @@
+@page "/industry-radar"
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Domain.Interfaces
+@using MSC.IdeaForge.Domain.ValueObjects
+@inject IAIProvider AIProvider
+@inject MSC.IdeaForge.Application.Problems.Queries.GetProblemsHandler GetProblemsHandler
+
+<PageTitle>Sektör Radarı</PageTitle>
+
+<div class="container mt-4">
+    @* Sayfa Başlığı *@
+    <div class="mb-4">
+        <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Sektör Radarı (Industry Radar)</h1>
+        <p class="text-muted mb-0">Yapay zeka ile herhangi bir sektörün trendlerini, fırsatlarını ve tehditlerini analiz edin.</p>
+    </div>
+
+    @* Sektör Analiz Formu *@
+    <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff; border: 1px solid #e3e6f0 !important;">
+        <div class="card-header bg-dark text-white py-3">
+            <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                <span class="bi bi-radar"></span> Sektör Trend Analizi
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger py-2 mb-3 small">@errorMessage</div>
+            }
+
+            <div class="row g-3 align-items-center">
+                <div class="col-md-9">
+                    <input type="text" class="form-control form-control-sm"
+                           placeholder="Analiz edilecek sektörü yazın (Örn: Yapay Zeka, FinTech, Sağlık Teknolojileri)..."
+                           @bind="sectorInput" @bind:event="oninput" @onkeydown="OnSearchKeyDown" />
+                </div>
+                <div class="col-md-3">
+                    @if (isAnalyzing)
+                    {
+                        <button class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-2" disabled>
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            Analiz ediliyor...
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary btn-sm w-100" @onclick="AnalyzeSector">🔍 Analiz Et</button>
+                    }
+                </div>
+            </div>
+
+            @* Mevcut problemlerdeki sektörlerden hızlı seçim *@
+            @if (knownSectors.Any())
+            {
+                <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+                    <span class="text-muted small">Hızlı seçim:</span>
+                    @foreach (var sector in knownSectors)
+                    {
+                        <button class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size: 0.75rem;"
+                                @onclick="() => QuickSelectSector(sector)" disabled="@isAnalyzing">
+                            @sector
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @* Analiz Sonuçları *@
+    @if (result is not null)
+    {
+        <div class="mb-3">
+            <h4 class="font-weight-bold text-dark mb-0">
+                <span class="bi bi-graph-up-arrow text-primary"></span> "@analyzedSector" Sektör Analizi
+            </h4>
+        </div>
+
+        <div class="row g-3">
+            @* Trend Özeti *@
+            <div class="col-12">
+                <div class="card shadow-sm border-0" style="border-radius: 12px; border-left: 4px solid #4e73df !important;">
+                    <div class="card-body p-3">
+                        <h6 class="font-weight-bold text-primary mb-2">
+                            <span class="bi bi-activity"></span> Trend Özeti
+                        </h6>
+                        <p class="mb-0 text-dark" style="white-space: pre-line;">@result.TrendSummary</p>
+                    </div>
+                </div>
+            </div>
+
+            @* Fırsatlar *@
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px; border-left: 4px solid #1cc88a !important;">
+                    <div class="card-body p-3">
+                        <h6 class="font-weight-bold text-success mb-2">
+                            <span class="bi bi-lightbulb-fill"></span> Fırsatlar
+                        </h6>
+                        <p class="mb-0 text-dark" style="white-space: pre-line;">@result.Opportunities</p>
+                    </div>
+                </div>
+            </div>
+
+            @* Tehditler *@
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px; border-left: 4px solid #e74a3b !important;">
+                    <div class="card-body p-3">
+                        <h6 class="font-weight-bold text-danger mb-2">
+                            <span class="bi bi-exclamation-triangle-fill"></span> Tehditler
+                        </h6>
+                        <p class="mb-0 text-dark" style="white-space: pre-line;">@result.Threats</p>
+                    </div>
+                </div>
+            </div>
+
+            @* Büyüme Potansiyeli *@
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px; border-left: 4px solid #36b9cc !important;">
+                    <div class="card-body p-3">
+                        <h6 class="font-weight-bold text-info mb-2">
+                            <span class="bi bi-bar-chart-line-fill"></span> Büyüme Potansiyeli
+                        </h6>
+                        <p class="mb-0 text-dark" style="white-space: pre-line;">@result.GrowthPotential</p>
+                    </div>
+                </div>
+            </div>
+
+            @* Ana Oyuncular *@
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px; border-left: 4px solid #f6c23e !important;">
+                    <div class="card-body p-3">
+                        <h6 class="font-weight-bold text-warning mb-2">
+                            <span class="bi bi-people-fill"></span> Ana Oyuncular
+                        </h6>
+                        <p class="mb-0 text-dark" style="white-space: pre-line;">@result.KeyPlayers</p>
+                    </div>
+                </div>
+            </div>
+
+            @* Öneriler *@
+            <div class="col-12">
+                <div class="card shadow-sm border-0" style="border-radius: 12px; background-color: #f8f9fc; border: 1px solid #e3e6f0 !important;">
+                    <div class="card-body p-3">
+                        <h6 class="font-weight-bold text-dark mb-2">
+                            <span class="bi bi-flag-fill text-secondary"></span> Stratejik Öneriler
+                        </h6>
+                        <p class="mb-0 text-dark" style="white-space: pre-line;">@result.Recommendation</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (!isAnalyzing)
+    {
+        @* Boş durum *@
+        <div class="text-center text-muted py-5">
+            <span class="bi bi-radar" style="font-size: 3rem; opacity: 0.3;"></span>
+            <p class="mt-3 mb-0">Bir sektör girip "Analiz Et" butonuna tıklayarak trend analizini başlatın.</p>
+        </div>
+    }
+</div>
+
+@code {
+    // Form ve analiz durumu
+    private string sectorInput = "";
+    private string analyzedSector = "";
+    private bool isAnalyzing = false;
+    private string errorMessage = "";
+    private SectorAnalysisResult? result;
+
+    // Mevcut problemlerden türetilen sektör listesi (hızlı seçim için)
+    private List<string> knownSectors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadKnownSectors();
+    }
+
+    /// <summary>
+    /// Mevcut problemlerdeki benzersiz sektörleri hızlı seçim için yükler.
+    /// </summary>
+    private async Task LoadKnownSectors()
+    {
+        try
+        {
+            var problems = await GetProblemsHandler.HandleAsync();
+            knownSectors = problems
+                .Where(p => !string.IsNullOrWhiteSpace(p.Sector))
+                .Select(p => p.Sector!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(s => s)
+                .Take(10)
+                .ToList();
+        }
+        catch
+        {
+            // Sektör listesi kritik değil; hata olursa boş liste ile devam ediyoruz.
+            knownSectors = new();
+        }
+    }
+
+    /// <summary>
+    /// Enter tuşuna basıldığında analizi tetikler.
+    /// </summary>
+    private async Task OnSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await AnalyzeSector();
+        }
+    }
+
+    /// <summary>
+    /// Hızlı seçim butonlarından bir sektör seçip analizi başlatır.
+    /// </summary>
+    private async Task QuickSelectSector(string sector)
+    {
+        sectorInput = sector;
+        await AnalyzeSector();
+    }
+
+    /// <summary>
+    /// Girilen sektör için yapay zeka trend analizini çalıştırır.
+    /// </summary>
+    private async Task AnalyzeSector()
+    {
+        errorMessage = "";
+
+        if (string.IsNullOrWhiteSpace(sectorInput))
+        {
+            errorMessage = "Lütfen analiz edilecek bir sektör girin.";
+            return;
+        }
+
+        isAnalyzing = true;
+        result = null;
+        StateHasChanged();
+
+        try
+        {
+            var sector = sectorInput.Trim();
+            result = await AIProvider.AnalyzeSectorAsync(sector);
+            analyzedSector = sector;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Analiz sırasında bir hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isAnalyzing = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<DeleteProblemHandler>();
         services.AddScoped<UpdateProblemStatusHandler>();
         services.AddScoped<UpdateProblemHandler>();
+        services.AddScoped<UpdateProblemPriorityHandler>();
 
         // Sinyal ekleme ve sorgulama işleyicilerini ekliyoruz
         services.AddScoped<CreateSignalHandler>();

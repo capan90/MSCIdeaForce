@@ -35,4 +35,11 @@ public interface IAIProvider
     /// Problem ve çözüm türüne göre MVP planı oluşturur.
     /// </summary>
     Task<MVPPlanResult> GenerateMVPPlanAsync(string title, string description, string? sector, string? solutionType);
+
+    /// <summary>
+    /// Verilen sektör hakkında trend analizi yapar.
+    /// </summary>
+    /// <param name="sector">Analiz edilecek sektör adı</param>
+    /// <returns>Sektör analiz sonuçlarını içeren SectorAnalysisResult nesnesini döner.</returns>
+    Task<SectorAnalysisResult> AnalyzeSectorAsync(string sector);
 }

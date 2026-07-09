@@ -650,6 +650,106 @@ Sen profesyonel bir ürün müdürü yapay zekasın. Çıktı olarak sadece ve s
         return result;
     }
 
+    /// <summary>
+    /// Verilen sektör hakkında detaylı trend analizi yapar.
+    /// </summary>
+    public async Task<SectorAnalysisResult> AnalyzeSectorAsync(string sector)
+    {
+        var apiKey = _configuration["AI:Gemini:ApiKey"];
+        var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        // API Key kontrolü
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Gemini API Key bulunamadı. Lütfen appsettings.json dosyasındaki 'AI:Gemini:ApiKey' alanını güncelleyin.");
+        }
+
+        // Gemini promptunu hazırlıyoruz
+        var prompt = $@"Aşağıdaki sektör hakkında detaylı bir trend analizi yap. Yanıtı mutlaka JSON formatında döndür. JSON formatı şu alanları içermelidir:
+- TrendSummary (Sektör trend özeti, Türkçe)
+- Opportunities (Sektördeki fırsatlar, Türkçe)
+- Threats (Sektördeki tehditler, Türkçe)
+- GrowthPotential (Büyüme potansiyeli değerlendirmesi, Türkçe)
+- KeyPlayers (Sektördeki ana oyuncular / önemli firmalar, Türkçe)
+- Recommendation (Genel öneriler ve stratejik tavsiyeler, Türkçe)
+
+Sektör: {sector}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+{{
+  ""TrendSummary"": ""sektör trend özeti"",
+  ""Opportunities"": ""fırsatlar"",
+  ""Threats"": ""tehditler"",
+  ""GrowthPotential"": ""büyüme potansiyeli"",
+  ""KeyPlayers"": ""ana oyuncular"",
+  ""Recommendation"": ""genel öneriler""
+}}
+
+Sen profesyonel bir sektör analisti yapay zekasın. Çıktı olarak sadece ve sadece saf, geçerli bir JSON döndürmelisin. JSON dışında hiçbir açıklama veya markdown biçimlendirmesi ekleme.";
+
+        var requestBody = new
+        {
+            contents = new[]
+            {
+                new
+                {
+                    parts = new[]
+                    {
+                        new { text = prompt }
+                    }
+                }
+            }
+        };
+
+        // HTTP POST isteği gönderiyoruz
+        var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+
+        var response = await _httpClient.PostAsJsonAsync(
+            requestUrl,
+            requestBody
+        );
+        response.EnsureSuccessStatusCode();
+
+        var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+        var jsonText = geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            throw new InvalidOperationException("Gemini API boş veya geçersiz bir yanıt döndürdü.");
+        }
+
+        // Eğer yapay zeka çıktıyı markdown kod bloğu olarak döndürdüyse temizliyoruz
+        if (jsonText.StartsWith("```json"))
+        {
+            jsonText = jsonText.Substring(7);
+        }
+        else if (jsonText.StartsWith("```"))
+        {
+            jsonText = jsonText.Substring(3);
+        }
+
+        if (jsonText.EndsWith("```"))
+        {
+            jsonText = jsonText.Substring(0, jsonText.Length - 3);
+        }
+
+        jsonText = jsonText.Trim();
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        var result = JsonSerializer.Deserialize<SectorAnalysisResult>(jsonText, options);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
+        }
+
+        return result;
+    }
+
     private class SolutionSuggestionDto
     {
         public string? SolutionType { get; set; }
