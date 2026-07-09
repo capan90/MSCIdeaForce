@@ -18,6 +18,8 @@ public class AppDbContext : DbContext
     public DbSet<KnowledgeEntry> KnowledgeEntries => Set<KnowledgeEntry>();
     public DbSet<ImportedSignal> ImportedSignals => Set<ImportedSignal>();
     public DbSet<Decision> Decisions => Set<Decision>();
+    public DbSet<TrendAnalysis> TrendAnalyses => Set<TrendAnalysis>();
+    public DbSet<RevenueAnalysis> RevenueAnalyses => Set<RevenueAnalysis>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -96,6 +98,19 @@ public class AppDbContext : DbContext
         });
 
         modelBuilder.Entity<Decision>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<TrendAnalysis>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TrendName).IsRequired().HasMaxLength(200);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<RevenueAnalysis>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasQueryFilter(e => !e.IsDeleted);

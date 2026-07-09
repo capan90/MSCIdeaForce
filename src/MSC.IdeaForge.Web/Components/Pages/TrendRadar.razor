@@ -1,0 +1,145 @@
+@page "/trend-radar"
+@rendermode InteractiveServer
+@using MSC.IdeaForge.Application.Trends.DTOs
+@inject MSC.IdeaForge.Application.Trends.Commands.AnalyzeTrendHandler AnalyzeTrendHandler
+@inject MSC.IdeaForge.Application.Trends.Queries.GetTrendAnalysisHandler GetTrendAnalysisHandler
+
+<PageTitle>Trend Radarı</PageTitle>
+
+<div class="container mt-4">
+    @* Sayfa Başlığı *@
+    <div class="mb-4">
+        <h1 class="font-weight-bold text-dark mb-1" style="letter-spacing: -1px;">Trend Radarı (Trend Radar)</h1>
+        <p class="text-muted mb-0">Takip edilen teknoloji ve iş trendlerini yapay zeka ile analiz edin; fırsatları ve önerilen aksiyonları keşfedin.</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger py-2 mb-3 small">@errorMessage</div>
+    }
+
+    @* Takip Edilen Trendler Listesi *@
+    <div class="row g-3">
+        @foreach (var trend in trackedTrends)
+        {
+            var analysis = analyses.GetValueOrDefault(trend);
+            var isAnalyzing = analyzingTrend == trend;
+
+            <div class="col-12">
+                <div class="card shadow-sm border-0" style="border-radius: 12px; border-left: 4px solid #6f42c1 !important;">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-dark px-2.5 py-1.5" style="font-size: 0.9rem;">@trend</span>
+                                @if (analysis is not null)
+                                {
+                                    <span class="text-muted small">Son analiz: @analysis.AnalyzedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                                }
+                            </div>
+                            @if (isAnalyzing)
+                            {
+                                <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2" disabled>
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                    Analiz ediliyor...
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2" @onclick="() => AnalyzeTrend(trend)">
+                                    <span class="bi bi-cpu-fill"></span> AI ile Analiz Et
+                                </button>
+                            }
+                        </div>
+
+                        @if (analysis is not null)
+                        {
+                            <div class="row g-3 mt-1">
+                                <div class="col-12">
+                                    <div class="p-3 bg-light rounded">
+                                        <h6 class="font-weight-bold text-primary mb-1"><span class="bi bi-info-circle"></span> Açıklama</h6>
+                                        <p class="mb-0 text-dark small" style="white-space: pre-line;">@analysis.Summary</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 rounded h-100" style="background-color: #f0fdf4;">
+                                        <h6 class="font-weight-bold text-success mb-1"><span class="bi bi-lightbulb-fill"></span> Fırsat Alanları</h6>
+                                        <p class="mb-0 text-dark small" style="white-space: pre-line;">@analysis.Opportunities</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 rounded h-100" style="background-color: #eff6ff;">
+                                        <h6 class="font-weight-bold text-info mb-1"><span class="bi bi-flag-fill"></span> Önerilen Aksiyonlar</h6>
+                                        <p class="mb-0 text-dark small" style="white-space: pre-line;">@analysis.Actions</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    // Takip edilen sabit trend başlıkları
+    private readonly string[] trackedTrends = new[]
+    {
+        "AI", "LLM", "MCP", "Robotik", "Enerji", "IoT", "SaaS", "DevTools"
+    };
+
+    // Trend başlığına göre en güncel analizler
+    private Dictionary<string, TrendAnalysisDto> analyses = new();
+    private string? analyzingTrend;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExistingAnalyses();
+    }
+
+    /// <summary>
+    /// Daha önce kaydedilmiş trend analizlerini yükler.
+    /// </summary>
+    private async Task LoadExistingAnalyses()
+    {
+        try
+        {
+            var all = await GetTrendAnalysisHandler.HandleAllAsync();
+            analyses = all
+                .GroupBy(a => a.TrendName)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.AnalyzedAt).First());
+        }
+        catch
+        {
+            // Var olan analizler yüklenemezse boş liste ile devam ediyoruz.
+            analyses = new();
+        }
+    }
+
+    /// <summary>
+    /// Seçilen trend için yapay zeka analizini çalıştırır ve sonucu kaydeder.
+    /// </summary>
+    private async Task AnalyzeTrend(string trend)
+    {
+        errorMessage = "";
+        analyzingTrend = trend;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AnalyzeTrendHandler.HandleAsync(
+                new MSC.IdeaForge.Application.Trends.Commands.AnalyzeTrendCommand { TrendName = trend });
+            analyses[trend] = result;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"'{trend}' analiz edilirken bir hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            analyzingTrend = null;
+            StateHasChanged();
+        }
+    }
+}

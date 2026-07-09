@@ -197,4 +197,20 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
     {
         throw new NotImplementedException();
     }
+
+    // Trend, gelir ve doğrulama soruları analizleri bu sağlayıcıda henüz uygulanmadı; şu an yalnızca Gemini destekler.
+    public Task<TrendAnalysisResult> AnalyzeTrendAsync(string trend)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<RevenueAnalysisResult> AnalyzeRevenueAsync(string title, string description, string? sector, string? solutionType)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<string>> GenerateValidationQuestionsAsync(string title, string description)
+    {
+        throw new NotImplementedException();
+    }
 }

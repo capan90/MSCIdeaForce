@@ -201,13 +201,14 @@
                                 <td class="text-center">
                                     @if (opportunityScores.TryGetValue(p.Id, out var score) && score > 0)
                                     {
-                                        <span class="badge bg-danger text-white px-2.5 py-1.5" style="font-size: 0.85rem;">
+                                        @* Skora göre renklendirilmiş mini gösterge *@
+                                        <span class="badge @GetScoreBadgeClass(score) text-white px-2.5 py-1.5" style="font-size: 0.85rem;">
                                             @score.ToString("0.0") / 10
                                         </span>
                                     }
                                     else
                                     {
-                                        <span class="text-muted italic">-</span>
+                                        <span class="badge bg-light text-muted border" style="font-size: 0.75rem;">Puanlanmadı</span>
                                     }
                                 </td>
                                 <td class="font-mono text-muted small">
@@ -492,5 +493,13 @@
         "Medium" => "Orta",
         "High" => "Yüksek",
         _ => priority
+    };
+
+    // Fırsat skoruna göre renk: 8-10 yeşil, 6-7.9 sarı, 0-5.9 kırmızı
+    private string GetScoreBadgeClass(double score) => score switch
+    {
+        >= 8 => "bg-success",
+        >= 6 => "bg-warning",
+        _ => "bg-danger"
     };
 }

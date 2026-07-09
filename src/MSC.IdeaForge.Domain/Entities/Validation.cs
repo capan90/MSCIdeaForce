@@ -16,6 +16,9 @@ public class Validation : BaseEntity
     public string? Risks { get; private set; }
     public ValidationStatus Status { get; private set; } = ValidationStatus.NotStarted;
 
+    // Yapay zeka tarafından üretilen doğrulama sorularının JSON serileştirilmiş hali (soru + soruldu mu bilgisi).
+    public string? ValidationQuestions { get; private set; }
+
     // EF Core için gizli varsayılan yapıcı metot
     private Validation() { }
 
@@ -72,6 +75,16 @@ public class Validation : BaseEntity
         Notes = notes;
         Risks = risks;
         Status = status;
+        SetUpdated();
+    }
+
+    /// <summary>
+    /// Yapay zeka tarafından üretilen doğrulama sorularını (JSON) ayarlar.
+    /// Diğer doğrulama alanlarını etkilemez.
+    /// </summary>
+    public void SetValidationQuestions(string? validationQuestionsJson)
+    {
+        ValidationQuestions = validationQuestionsJson;
         SetUpdated();
     }
 

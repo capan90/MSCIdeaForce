@@ -42,4 +42,22 @@ public interface IAIProvider
     /// <param name="sector">Analiz edilecek sektör adı</param>
     /// <returns>Sektör analiz sonuçlarını içeren SectorAnalysisResult nesnesini döner.</returns>
     Task<SectorAnalysisResult> AnalyzeSectorAsync(string sector);
+
+    /// <summary>
+    /// Verilen trend başlığı hakkında açıklama, fırsat alanları ve önerilen aksiyonları içeren analiz yapar.
+    /// </summary>
+    /// <param name="trend">Analiz edilecek trend başlığı (Örn: AI, LLM, MCP)</param>
+    /// <returns>Trend analiz sonuçlarını içeren TrendAnalysisResult nesnesini döner.</returns>
+    Task<TrendAnalysisResult> AnalyzeTrendAsync(string trend);
+
+    /// <summary>
+    /// Verilen problem için gelir modeli analizi yapar.
+    /// </summary>
+    Task<RevenueAnalysisResult> AnalyzeRevenueAsync(string title, string description, string? sector, string? solutionType);
+
+    /// <summary>
+    /// Verilen problem için sorulması gereken doğrulama (validation) sorularını üretir.
+    /// </summary>
+    /// <returns>Doğrulama sorularını içeren metin listesi döner.</returns>
+    Task<List<string>> GenerateValidationQuestionsAsync(string title, string description);
 }

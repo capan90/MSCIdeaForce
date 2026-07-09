@@ -27,11 +27,17 @@
 @inject IJSRuntime JsRuntime
 @using MSC.IdeaForge.Application.Agents
 @using MSC.IdeaForge.Application.Decisions.DTOs
+@using MSC.IdeaForge.Application.Validations.DTOs
+@using System.Text.Json
 @inject MSC.IdeaForge.Application.Agents.AgentCoordinator AgentCoordinator
 @inject MSC.IdeaForge.Application.Problems.Commands.UpdateProblemHandler UpdateProblemHandler
 @inject MSC.IdeaForge.Application.Decisions.Commands.CreateDecisionHandler CreateDecisionHandler
 @inject MSC.IdeaForge.Application.Decisions.Queries.GetDecisionsByProblemHandler GetDecisionsByProblemHandler
 @inject MSC.IdeaForge.Application.Problems.Commands.UpdateProblemPriorityHandler UpdateProblemPriorityHandler
+@inject MSC.IdeaForge.Application.Revenues.Commands.AnalyzeRevenueHandler AnalyzeRevenueHandler
+@inject MSC.IdeaForge.Application.Revenues.Queries.GetRevenueAnalysisHandler GetRevenueAnalysisHandler
+@inject MSC.IdeaForge.Application.Validations.Commands.GenerateValidationQuestionsHandler GenerateValidationQuestionsHandler
+@inject MSC.IdeaForge.Application.Validations.Commands.SaveValidationQuestionsHandler SaveValidationQuestionsHandler
 
 <PageTitle>Problem Detayı</PageTitle>
 
@@ -89,6 +95,9 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "mvp" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("mvp")'>MVP Planı</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "revenue" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("revenue")'>Gelir Analizi</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "ai_analysis" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("ai_analysis")'>AI Analizi</button>
@@ -637,6 +646,60 @@
                     </div>
                 </div>
             </div>
+
+            @* AI Doğrulama Soruları Bölümü *@
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #6f42c1, #8b5cf6); border-bottom: none;">
+                    <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                        <span class="bi bi-patch-question-fill"></span> AI Doğrulama Soruları
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (questionsErrorMessage != "")
+                    {
+                        <div class="alert alert-danger py-2 mb-3 small">@questionsErrorMessage</div>
+                    }
+
+                    <div class="mb-3">
+                        @if (isGeneratingQuestions)
+                        {
+                            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2" disabled>
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Yapay Zeka sorular üretiyor...
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2" style="border-color: #6f42c1; color: #6f42c1;" @onclick="GenerateValidationQuestions">
+                                <span class="bi bi-cpu-fill"></span> AI ile Doğrulama Soruları Üret
+                            </button>
+                        }
+                    </div>
+
+                    @if (validationQuestions.Any())
+                    {
+                        <p class="text-muted small mb-2">Potansiyel müşterilere bu soruları sorun ve sorduklarınızı işaretleyin:</p>
+                        <div class="d-flex flex-column gap-2">
+                            @for (int i = 0; i < validationQuestions.Count; i++)
+                            {
+                                var index = i;
+                                <div class="form-check p-2.5 rounded bg-light border d-flex align-items-start gap-2" style="padding-left: 2.25rem;">
+                                    <input class="form-check-input mt-1" type="checkbox" id="vq_@index"
+                                           checked="@validationQuestions[index].IsAsked"
+                                           @onchange="() => ToggleQuestionAsked(index)" />
+                                    <label class="form-check-label small @(validationQuestions[index].IsAsked ? "text-muted text-decoration-line-through" : "text-dark")" for="vq_@index">
+                                        @validationQuestions[index].Question
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted small italic">Henüz doğrulama sorusu üretilmedi. AI ile 5 kritik doğrulama sorusu oluşturabilirsiniz.</div>
+                    }
+                </div>
+            </div>
         }
         else if (activeTab == "research")
         {
@@ -1002,6 +1065,60 @@
                 </div>
             </div>
         }
+        else if (activeTab == "revenue")
+        {
+            @* Gelir Analizi Bölümü *@
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #059669, #10b981); border-bottom: none;">
+                    <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                        <span class="bi bi-cash-coin"></span> Gelir Analizi (Revenue Analyzer)
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (revenueSuccessMessage != "")
+                    {
+                        <div class="alert alert-success py-2 mb-3 small">@revenueSuccessMessage</div>
+                    }
+                    @if (revenueErrorMessage != "")
+                    {
+                        <div class="alert alert-danger py-2 mb-3 small">@revenueErrorMessage</div>
+                    }
+
+                    @* AI ile Gelir Analizi Butonu *@
+                    <div class="mb-4 d-flex justify-content-between align-items-center">
+                        @if (isRevenueAnalyzing)
+                        {
+                            <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-2" disabled>
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Yapay Zeka gelir modelini analiz ediyor...
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-2" @onclick="RunAiRevenueAnalysis">
+                                <span class="bi bi-cpu-fill"></span> AI ile Gelir Analizi Yap
+                            </button>
+                        }
+
+                        @if (revenueDto is not null)
+                        {
+                            <span class="text-muted small" style="font-size: 0.8rem;">Son Analiz: @revenueDto.AnalyzedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</span>
+                        }
+                    </div>
+
+                    @if (revenueDto is not null)
+                    {
+                        <RevenueAnalysisView Result="revenueDto" />
+                    }
+                    else
+                    {
+                        <div class="alert alert-light text-center py-4 border shadow-sm" style="border-radius: 8px;">
+                            Bu problem için henüz bir gelir analizi yapılmamış. Yukarıdaki buton ile AI destekli gelir analizini başlatabilirsiniz.
+                        </div>
+                    }
+                </div>
+            </div>
+        }
         else if (activeTab == "ai_analysis")
         {
             @* AI Analiz Bölümü *@
@@ -1201,6 +1318,17 @@
     private List<AgentProgress>? coordinatorProgress;
     private bool isFullAnalysisRunning = false;
 
+    // Gelir analizi state alanları
+    private MSC.IdeaForge.Application.Revenues.DTOs.RevenueAnalysisDto? revenueDto;
+    private bool isRevenueAnalyzing = false;
+    private string revenueSuccessMessage = "";
+    private string revenueErrorMessage = "";
+
+    // AI doğrulama soruları state alanları
+    private List<ValidationQuestionDto> validationQuestions = new();
+    private bool isGeneratingQuestions = false;
+    private string questionsErrorMessage = "";
+
     protected override async Task OnInitializedAsync()
     {
         // Sayfa yüklendiğinde problemi, sinyalleri, fırsat skorlarını, doğrulama, araştırma, çözümler, MVP planı ve AI analiz verilerini getirmek için sorguları tetikliyoruz.
@@ -1215,6 +1343,7 @@
             await LoadSolutions();
             await LoadMVPPlan();
             await LoadDecisions();
+            await LoadRevenue();
         }
         catch
         {
@@ -1239,6 +1368,9 @@
         solutionErrorMessage = "";
         mvpSuccessMessage = "";
         mvpErrorMessage = "";
+        revenueSuccessMessage = "";
+        revenueErrorMessage = "";
+        questionsErrorMessage = "";
     }
 
     private async Task LoadSignals()
@@ -1291,11 +1423,120 @@
                 {
                     validationStatus = status;
                 }
+                ParseValidationQuestions(validationDto.ValidationQuestions);
+            }
+            else
+            {
+                validationQuestions = new();
             }
         }
         catch
         {
             validationDto = null;
+        }
+    }
+
+    /// <summary>
+    /// Doğrulama sorularının JSON halini bileşen içi listeye çözümler.
+    /// </summary>
+    private void ParseValidationQuestions(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            validationQuestions = new();
+            return;
+        }
+        try
+        {
+            validationQuestions = JsonSerializer.Deserialize<List<ValidationQuestionDto>>(json) ?? new();
+        }
+        catch
+        {
+            validationQuestions = new();
+        }
+    }
+
+    /// <summary>
+    /// Probleme ait mevcut gelir analizini yükler.
+    /// </summary>
+    private async Task LoadRevenue()
+    {
+        try
+        {
+            revenueDto = await GetRevenueAnalysisHandler.HandleAsync(Id);
+        }
+        catch
+        {
+            revenueDto = null;
+        }
+    }
+
+    /// <summary>
+    /// Problem için yapay zeka destekli gelir analizini çalıştırır ve sonucu kaydeder.
+    /// </summary>
+    private async Task RunAiRevenueAnalysis()
+    {
+        revenueSuccessMessage = "";
+        revenueErrorMessage = "";
+        isRevenueAnalyzing = true;
+        try
+        {
+            revenueDto = await AnalyzeRevenueHandler.HandleAsync(
+                new MSC.IdeaForge.Application.Revenues.Commands.AnalyzeRevenueCommand { ProblemId = Id });
+            revenueSuccessMessage = "Gelir analizi başarıyla tamamlandı.";
+        }
+        catch (Exception ex)
+        {
+            revenueErrorMessage = $"Gelir analizi sırasında bir hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isRevenueAnalyzing = false;
+        }
+    }
+
+    /// <summary>
+    /// Problem için yapay zeka destekli doğrulama sorularını üretir ve kaydeder.
+    /// </summary>
+    private async Task GenerateValidationQuestions()
+    {
+        questionsErrorMessage = "";
+        isGeneratingQuestions = true;
+        try
+        {
+            validationQuestions = await GenerateValidationQuestionsHandler.HandleAsync(
+                new MSC.IdeaForge.Application.Validations.Commands.GenerateValidationQuestionsCommand { ProblemId = Id });
+        }
+        catch (Exception ex)
+        {
+            questionsErrorMessage = $"Sorular üretilirken bir hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isGeneratingQuestions = false;
+        }
+    }
+
+    /// <summary>
+    /// Bir doğrulama sorusunun "soruldu mu?" durumunu değiştirir ve kalıcı olarak kaydeder.
+    /// </summary>
+    private async Task ToggleQuestionAsked(int index)
+    {
+        if (index < 0 || index >= validationQuestions.Count) return;
+
+        validationQuestions[index].IsAsked = !validationQuestions[index].IsAsked;
+        try
+        {
+            await SaveValidationQuestionsHandler.HandleAsync(
+                new MSC.IdeaForge.Application.Validations.Commands.SaveValidationQuestionsCommand
+                {
+                    ProblemId = Id,
+                    Questions = validationQuestions
+                });
+        }
+        catch (Exception ex)
+        {
+            questionsErrorMessage = $"Soru durumu kaydedilirken bir hata oluştu: {ex.Message}";
         }
     }
 

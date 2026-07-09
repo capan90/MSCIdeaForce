@@ -15,4 +15,7 @@ public class ValidationDto
     public string? Risks { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+
+    // Yapay zeka tarafından üretilen doğrulama sorularının JSON serileştirilmiş hali.
+    public string? ValidationQuestions { get; set; }
 }

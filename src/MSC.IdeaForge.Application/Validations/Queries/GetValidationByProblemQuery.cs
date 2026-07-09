@@ -37,7 +37,8 @@ public class GetValidationByProblemHandler
             Notes = validation.Notes,
             Risks = validation.Risks,
             Status = validation.Status.ToString(),
-            CreatedAt = validation.CreatedAt
+            CreatedAt = validation.CreatedAt,
+            ValidationQuestions = validation.ValidationQuestions
         };
     }
 }

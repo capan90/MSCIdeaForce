@@ -20,6 +20,10 @@ using MSC.IdeaForge.Application.Agents;
 using MSC.IdeaForge.Application.Signals.Services;
 using MSC.IdeaForge.Application.Decisions.Commands;
 using MSC.IdeaForge.Application.Decisions.Queries;
+using MSC.IdeaForge.Application.Trends.Commands;
+using MSC.IdeaForge.Application.Trends.Queries;
+using MSC.IdeaForge.Application.Revenues.Commands;
+using MSC.IdeaForge.Application.Revenues.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -53,6 +57,8 @@ public static class DependencyInjection
         // Doğrulama işleyicilerini ekliyoruz
         services.AddScoped<SaveValidationHandler>();
         services.AddScoped<GetValidationByProblemHandler>();
+        services.AddScoped<GenerateValidationQuestionsHandler>();
+        services.AddScoped<SaveValidationQuestionsHandler>();
 
         // Dashboard sorgulama işleyicisini ekliyoruz
         services.AddScoped<DashboardQueryHandler>();
@@ -92,6 +98,14 @@ public static class DependencyInjection
         services.AddScoped<CreateDecisionHandler>();
         services.AddScoped<GetDecisionsByProblemHandler>();
         services.AddScoped<GetAllDecisionsHandler>();
+
+        // Trend Radarı işleyicileri
+        services.AddScoped<AnalyzeTrendHandler>();
+        services.AddScoped<GetTrendAnalysisHandler>();
+
+        // Gelir Analizörü işleyicileri
+        services.AddScoped<AnalyzeRevenueHandler>();
+        services.AddScoped<GetRevenueAnalysisHandler>();
 
         return services;
     }
