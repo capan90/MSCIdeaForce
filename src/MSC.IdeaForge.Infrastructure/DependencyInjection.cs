@@ -43,9 +43,11 @@ public static class DependencyInjection
         services.AddScoped<IRSSFeedRepository, RSSFeedRepository>();
         services.AddScoped<IEmailSettingRepository, EmailSettingRepository>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IAIProviderSettingRepository, AIProviderSettingRepository>();
+        services.AddScoped<IAIPromptRepository, AIPromptRepository>();
 
         // HttpClient ve GeminiAIProvider bağımlılıklarını ekliyoruz
-        services.AddScoped<HttpClient>();
+        services.AddScoped(sp => new HttpClient { Timeout = System.TimeSpan.FromSeconds(120) });
         services.AddScoped<IAIProvider, GeminiAIProvider>();
 
         return services;

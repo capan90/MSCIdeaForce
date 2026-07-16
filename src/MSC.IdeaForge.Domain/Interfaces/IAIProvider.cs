@@ -1,4 +1,5 @@
 using MSC.IdeaForge.Domain.ValueObjects;
+using MSC.IdeaForge.Domain.Entities;
 
 namespace MSC.IdeaForge.Domain.Interfaces;
 
@@ -122,4 +123,14 @@ public interface IAIProvider
     /// Verilen problem için 30-60-90 günlük aksiyon planı oluşturur.
     /// </summary>
     Task<ActionPlanResult> GenerateActionPlanAsync(string title, string description, string? sector, string? solutionType);
+
+    /// <summary>
+    /// Semantik arama ile verilen sorguya en benzer problemleri bulur.
+    /// </summary>
+    Task<List<SimilarProblemResult>> FindSimilarProblemsAsync(string query, List<Problem> problems);
+
+    /// <summary>
+    /// Verilen fikir için detaylı patent risk ve fırsat analizi yapar.
+    /// </summary>
+    Task<PatentAnalysisResult> AnalyzePatentsAsync(string title, string description, string? sector);
 }

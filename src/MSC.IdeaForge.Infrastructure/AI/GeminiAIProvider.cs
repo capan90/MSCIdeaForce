@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using MSC.IdeaForge.Domain.Interfaces;
 using MSC.IdeaForge.Domain.ValueObjects;
 using MSC.IdeaForge.Domain.Enums;
+using MSC.IdeaForge.Domain.Entities;
 
 namespace MSC.IdeaForge.Infrastructure.AI;
 
@@ -16,11 +17,33 @@ public class GeminiAIProvider : IAIProvider
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
+    private readonly IAIProviderSettingRepository _providerSettingRepository;
+    private readonly IAIPromptRepository _promptRepository;
 
-    public GeminiAIProvider(HttpClient httpClient, IConfiguration configuration)
+    public GeminiAIProvider(
+        HttpClient httpClient, 
+        IConfiguration configuration,
+        IAIProviderSettingRepository providerSettingRepository,
+        IAIPromptRepository promptRepository)
     {
         _httpClient = httpClient;
-        _configuration = configuration;
+        _providerSettingRepository = providerSettingRepository;
+        _promptRepository = promptRepository;
+
+        _configuration = new DynamicAIConfiguration(configuration, key =>
+        {
+            try
+            {
+                var dbProvider = _providerSettingRepository.GetDefaultAsync().GetAwaiter().GetResult();
+                if (dbProvider != null && !string.IsNullOrWhiteSpace(dbProvider.ApiKey))
+                {
+                    if (key == "AI:Gemini:ApiKey") return dbProvider.ApiKey;
+                    if (key == "AI:Gemini:Model") return dbProvider.Model;
+                }
+            }
+            catch { }
+            return null;
+        });
     }
 
     /// <summary>
@@ -28,6 +51,7 @@ public class GeminiAIProvider : IAIProvider
     /// </summary>
     public async Task<ProblemAnalysisResult> AnalyzeProblemAsync(string title, string description, string? sector)
     {
+        Console.WriteLine("AnalyzeProblemAsync başladı");
         var apiKey = _configuration["AI:Gemini:ApiKey"];
         var model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
 
@@ -79,10 +103,12 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
         Console.WriteLine($"Gemini API URL: {requestUrl}");
 
+        Console.WriteLine("API çağrısı başladı: AnalyzeProblemAsync");
         var response = await _httpClient.PostAsJsonAsync(
             requestUrl,
             requestBody
         );
+        Console.WriteLine("API yanıtı alındı: AnalyzeProblemAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -123,6 +149,7 @@ Yanıt şeması tam olarak şu şekilde olmalıdır:
             throw new InvalidOperationException("Gemini yanıtı beklenen şemaya göre çözümlenemedi.");
         }
 
+        Console.WriteLine("AnalyzeProblemAsync bitti");
         return new ProblemAnalysisResult(
             result.Summary ?? string.Empty,
             result.SuggestedCategory ?? string.Empty,
@@ -231,10 +258,12 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
         Console.WriteLine($"Gemini API URL: {requestUrl}");
 
+        Console.WriteLine("API çağrısı başladı: ScoreOpportunityAsync");
         var response = await _httpClient.PostAsJsonAsync(
             requestUrl,
             requestBody
         );
+        Console.WriteLine("API yanıtı alındı: ScoreOpportunityAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -358,10 +387,12 @@ Sen profesyonel bir problem analisti ve pazar araştırmacısı yapay zekasın. 
         // HTTP POST isteği gönderiyoruz
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: ResearchProblemAsync");
         var response = await _httpClient.PostAsJsonAsync(
             requestUrl,
             requestBody
         );
+        Console.WriteLine("API yanıtı alındı: ResearchProblemAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -467,10 +498,12 @@ Sen profesyonel bir ürün yöneticisi yapay zekasın. Çıktı olarak sadece ve
         // HTTP POST isteği gönderiyoruz
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: SuggestSolutionsAsync");
         var response = await _httpClient.PostAsJsonAsync(
             requestUrl,
             requestBody
         );
+        Console.WriteLine("API yanıtı alındı: SuggestSolutionsAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -604,10 +637,12 @@ Sen profesyonel bir ürün müdürü yapay zekasın. Çıktı olarak sadece ve s
         // HTTP POST isteği gönderiyoruz
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: GenerateMVPPlanAsync");
         var response = await _httpClient.PostAsJsonAsync(
             requestUrl,
             requestBody
         );
+        Console.WriteLine("API yanıtı alındı: GenerateMVPPlanAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -704,10 +739,12 @@ Sen profesyonel bir sektör analisti yapay zekasın. Çıktı olarak sadece ve s
         // HTTP POST isteği gönderiyoruz
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: AnalyzeSectorAsync");
         var response = await _httpClient.PostAsJsonAsync(
             requestUrl,
             requestBody
         );
+        Console.WriteLine("API yanıtı alındı: AnalyzeSectorAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -798,10 +835,12 @@ Sen profesyonel bir trend analisti yapay zekasın. Çıktı olarak sadece ve sad
         // HTTP POST isteği gönderiyoruz
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: AnalyzeTrendAsync");
         var response = await _httpClient.PostAsJsonAsync(
             requestUrl,
             requestBody
         );
+        Console.WriteLine("API yanıtı alındı: AnalyzeTrendAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -891,10 +930,12 @@ Sen profesyonel bir iş modeli ve gelir stratejisi analisti yapay zekasın. Çı
         // HTTP POST isteği gönderiyoruz
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: AnalyzeRevenueAsync");
         var response = await _httpClient.PostAsJsonAsync(
             requestUrl,
             requestBody
         );
+        Console.WriteLine("API yanıtı alındı: AnalyzeRevenueAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -969,10 +1010,12 @@ Sen profesyonel bir müşteri geliştirme (customer development) uzmanı yapay z
         // HTTP POST isteği gönderiyoruz
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: GenerateValidationQuestionsAsync");
         var response = await _httpClient.PostAsJsonAsync(
             requestUrl,
             requestBody
         );
+        Console.WriteLine("API yanıtı alındı: GenerateValidationQuestionsAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1060,10 +1103,12 @@ Sen profesyonel bir rekabet istihbaratı (competitive intelligence) analisti yap
         // HTTP POST isteği gönderiyoruz
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: AnalyzeCompetitorsAsync");
         var response = await _httpClient.PostAsJsonAsync(
             requestUrl,
             requestBody
         );
+        Console.WriteLine("API yanıtı alındı: AnalyzeCompetitorsAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1150,7 +1195,9 @@ Sen deneyimli bir girişim danışmanı ve yatırım uzmanı yapay zekasın. Ç�
 
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: GenerateInvestorBriefAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: GenerateInvestorBriefAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1231,7 +1278,9 @@ Sen Türkiye'deki hibe ve teşvik programları konusunda uzman bir danışman ya
 
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: FindGrantsAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: FindGrantsAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1296,7 +1345,9 @@ Sen deneyimli bir pazar araştırması analisti yapay zekasın. Çıktı olarak 
         var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: CalculateMarketSizeAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: CalculateMarketSizeAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1363,7 +1414,9 @@ Sen deneyimli bir iş modeli stratejisti yapay zekasın. Çıktı olarak sadece 
         var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: GenerateBusinessCanvasAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: GenerateBusinessCanvasAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1422,7 +1475,9 @@ Sen deneyimli bir girişim mentoru yapay zekasın. Çıktı olarak sadece ve sad
         var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: GenerateStartupChecklistAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: GenerateStartupChecklistAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1484,7 +1539,9 @@ Sen deneyimli bir teknoloji girişimi İK ve ekip kurma danışmanı yapay zekas
         var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: AnalyzeTeamNeedsAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: AnalyzeTeamNeedsAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1546,7 +1603,9 @@ Eğer bağlantılı problem yoksa boş bir array döndür. Sen bir problem iliş
         var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: FindRelatedProblemsAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: FindRelatedProblemsAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1612,7 +1671,9 @@ Sen deneyimli bir fiyatlandırma stratejisti yapay zekasın. Çıktı olarak sad
         var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: GeneratePricingStrategyAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: GeneratePricingStrategyAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1674,7 +1735,9 @@ Sen deneyimli bir risk yönetimi analisti yapay zekasın. Çıktı olarak sadece
         var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: GenerateRiskMatrixAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: GenerateRiskMatrixAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1740,7 +1803,9 @@ Sen deneyimli bir kullanıcı araştırması (UX research) uzmanı yapay zekası
         var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: GenerateCustomerPersonaAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: GenerateCustomerPersonaAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1802,7 +1867,9 @@ Sen deneyimli bir girişim operasyon danışmanı yapay zekasın. Çıktı olara
         var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
         var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
+        Console.WriteLine("API çağrısı başladı: GenerateActionPlanAsync");
         var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody);
+        Console.WriteLine("API yanıtı alındı: GenerateActionPlanAsync");
         response.EnsureSuccessStatusCode();
 
         var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
@@ -1859,4 +1926,277 @@ Sen deneyimli bir girişim operasyon danışmanı yapay zekasın. Çıktı olara
         public string? Cons { get; set; }
         public bool IsRecommended { get; set; }
     }
+
+    private async Task<string> GetActivePromptAsync(PromptType promptType, string defaultPrompt)
+    {
+        try
+        {
+            var dbPrompt = await _promptRepository.GetActiveByTypeAsync(promptType);
+            if (dbPrompt != null && !string.IsNullOrWhiteSpace(dbPrompt.Content))
+            {
+                return dbPrompt.Content;
+            }
+        }
+        catch
+        {
+            // Fallback
+        }
+        return defaultPrompt;
+    }
+
+    private async Task<string> CallAIAsync(string prompt, CancellationToken cancellationToken = default)
+    {
+        string provider = "Gemini";
+        string apiKey = _configuration["AI:Gemini:ApiKey"] ?? "";
+        string model = _configuration["AI:Gemini:Model"] ?? "gemini-2.5-flash";
+
+        try
+        {
+            var dbProvider = await _providerSettingRepository.GetDefaultAsync(cancellationToken);
+            if (dbProvider != null && !string.IsNullOrWhiteSpace(dbProvider.ApiKey))
+            {
+                provider = dbProvider.ProviderName;
+                apiKey = dbProvider.ApiKey;
+                model = dbProvider.Model;
+            }
+        }
+        catch
+        {
+            // Fallback
+        }
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException($"{provider} API Key bulunamadı. Lütfen AI ayarlarını kontrol edin.");
+        }
+
+        if (provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+        {
+            var requestBody = new
+            {
+                contents = new[]
+                {
+                    new { parts = new[] { new { text = prompt } } }
+                }
+            };
+            var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+            Console.WriteLine("API çağrısı başladı: CallAIAsync");
+            var response = await _httpClient.PostAsJsonAsync(requestUrl, requestBody, cancellationToken);
+            Console.WriteLine("API yanıtı alındı: CallAIAsync");
+            response.EnsureSuccessStatusCode();
+
+            var geminiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>(cancellationToken: cancellationToken);
+            return geminiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? "";
+        }
+        else if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
+        {
+            var requestMessage = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+            requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+
+            var requestBody = new
+            {
+                model = model,
+                messages = new[]
+                {
+                    new { role = "user", content = prompt }
+                },
+                temperature = 0.2
+            };
+
+            requestMessage.Content = JsonContent.Create(requestBody);
+            Console.WriteLine("API çağrısı başladı: CallAIAsync");
+            var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+            Console.WriteLine("API yanıtı alındı: CallAIAsync");
+            response.EnsureSuccessStatusCode();
+
+            using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+        }
+        else if (provider.Equals("Claude", StringComparison.OrdinalIgnoreCase))
+        {
+            var requestMessage = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+            requestMessage.Headers.Add("x-api-key", apiKey);
+            requestMessage.Headers.Add("anthropic-version", "2023-06-01");
+
+            var requestBody = new
+            {
+                model = model,
+                max_tokens = 4000,
+                messages = new[]
+                {
+                    new { role = "user", content = prompt }
+                }
+            };
+
+            requestMessage.Content = JsonContent.Create(requestBody);
+            Console.WriteLine("API çağrısı başladı: CallAIAsync");
+            var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+            Console.WriteLine("API yanıtı alındı: CallAIAsync");
+            response.EnsureSuccessStatusCode();
+
+            using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            return doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString() ?? "";
+        }
+
+        throw new NotSupportedException($"Yapay zeka sağlayıcısı desteklenmiyor: {provider}");
+    }
+
+    public async Task<List<SimilarProblemResult>> FindSimilarProblemsAsync(string query, List<Problem> problems)
+    {
+        if (problems == null || !problems.Any())
+        {
+            return new List<SimilarProblemResult>();
+        }
+
+        var defaultPrompt = $@"Aşağıdaki sorgu (sorgulanan problem) ile verilen mevcut problemler listesini karşılaştır. Semantik olarak en benzer olanları bul ve benzerlik skoru ver (0.0 ile 1.0 arasında). Yanıtı mutlaka JSON formatında döndür.
+Yanıt şeması bir JSON array olmalıdır:
+[
+  {{
+    ""ProblemId"": ""guid"",
+    ""Title"": ""başlık"",
+    ""SimilarityScore"": 0.85,
+    ""Reason"": ""Türkçe benzerlik nedeni açıklaması""
+  }}
+]
+
+Sorgu: {query}
+
+Problemler Listesi:
+{string.Join("\n", problems.Select(p => $"- Id: {p.Id}, Başlık: {p.Title}, Açıklama: {p.Description}"))}";
+
+        var promptTemplate = await GetActivePromptAsync(PromptType.SimilarProblems, defaultPrompt);
+        var finalPrompt = promptTemplate
+            .Replace("{query}", query)
+            .Replace("{problems}", string.Join("\n", problems.Select(p => $"- Id: {p.Id}, Başlık: {p.Title}, Açıklama: {p.Description}")));
+
+        var jsonText = await CallAIAsync(finalPrompt);
+        Console.WriteLine($"[FindSimilarProblemsAsync] Raw Response: {jsonText}");
+        jsonText = CleanJsonText(jsonText);
+
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new FlexibleStringJsonConverter());
+        try
+        {
+            var result = JsonSerializer.Deserialize<List<SimilarProblemResultDto>>(jsonText, options);
+            if (result != null)
+            {
+                return result.Select(r => new SimilarProblemResult
+                {
+                    ProblemId = Guid.TryParse(r.ProblemId, out var id) ? id : Guid.Empty,
+                    Title = r.Title ?? string.Empty,
+                    SimilarityScore = r.SimilarityScore,
+                    Reason = r.Reason ?? string.Empty
+                }).ToList();
+            }
+        }
+        catch
+        {
+            // Deserialize error
+        }
+
+        return new List<SimilarProblemResult>();
+    }
+
+    public async Task<PatentAnalysisResult> AnalyzePatentsAsync(string title, string description, string? sector)
+    {
+        var defaultPrompt = $@"Aşağıdaki fikir/problem için detaylı patent durum analizi yap. Yanıtı mutlaka JSON formatında döndür.
+JSON formatı şu alanları içermelidir:
+- PatentRisk (Düşük/Orta/Yüksek değerlerinden biri)
+- ExistingPatents (Benzer mevcut patent veya teknolojilerin Türkçe adları listesi, string array)
+- PatentableAspects (Fikrin patentlenebilir yönlerinin Türkçe listesi, string array)
+- Recommendations (Önerilen adımlar ve tavsiyelerin Türkçe listesi, string array)
+- FreedomToOperate (Fikrin ticari faaliyette bulunma serbestliği (FTO) durumunun Türkçe değerlendirmesi, string)
+
+Fikir Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector ?? "Belirtilmemiş"}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+{{
+  ""PatentRisk"": ""Orta"",
+  ""ExistingPatents"": [""Mevcut Patent 1"", ""Mevcut Patent 2""],
+  ""PatentableAspects"": [""Patentlenebilir Yön 1"", ""Patentlenebilir Yön 2""],
+  ""Recommendations"": [""Tavsiye 1"", ""Tavsiye 2""],
+  ""FreedomToOperate"": ""Bu fikrin hayata geçirilmesinde şu riskler mevcuttur...""
+}}";
+
+        var promptTemplate = await GetActivePromptAsync(PromptType.PatentAnalysis, defaultPrompt);
+        var finalPrompt = promptTemplate
+            .Replace("{title}", title)
+            .Replace("{description}", description)
+            .Replace("{sector}", sector ?? "Belirtilmemiş");
+
+        var jsonText = await CallAIAsync(finalPrompt);
+        Console.WriteLine($"[AnalyzePatentsAsync] Raw Response: {jsonText}");
+        jsonText = CleanJsonText(jsonText);
+
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new FlexibleStringJsonConverter());
+        try
+        {
+            var result = JsonSerializer.Deserialize<PatentAnalysisResultDto>(jsonText, options);
+            if (result != null)
+            {
+                return new PatentAnalysisResult
+                {
+                    PatentRisk = result.PatentRisk ?? "Düşük",
+                    ExistingPatents = result.ExistingPatents ?? new List<string>(),
+                    PatentableAspects = result.PatentableAspects ?? new List<string>(),
+                    Recommendations = result.Recommendations ?? new List<string>(),
+                    FreedomToOperate = result.FreedomToOperate ?? string.Empty
+                };
+            }
+        }
+        catch
+        {
+            // Deserialize error
+        }
+
+        return new PatentAnalysisResult();
+    }
+
+    private class SimilarProblemResultDto
+    {
+        public string? ProblemId { get; set; }
+        public string? Title { get; set; }
+        public double SimilarityScore { get; set; }
+        public string? Reason { get; set; }
+    }
+
+    private class PatentAnalysisResultDto
+    {
+        public string? PatentRisk { get; set; }
+        public List<string>? ExistingPatents { get; set; }
+        public List<string>? PatentableAspects { get; set; }
+        public List<string>? Recommendations { get; set; }
+        public string? FreedomToOperate { get; set; }
+    }
+}
+
+public class DynamicAIConfiguration : IConfiguration
+{
+    private readonly IConfiguration _inner;
+    private readonly Func<string, string?> _dbValueProvider;
+
+    public DynamicAIConfiguration(IConfiguration inner, Func<string, string?> dbValueProvider)
+    {
+        _inner = inner;
+        _dbValueProvider = dbValueProvider;
+    }
+
+    public string? this[string key]
+    {
+        get
+        {
+            var dbVal = _dbValueProvider(key);
+            if (dbVal != null) return dbVal;
+            return _inner[key];
+        }
+        set => _inner[key] = value;
+    }
+
+    public IEnumerable<IConfigurationSection> GetChildren() => _inner.GetChildren();
+    public Microsoft.Extensions.Primitives.IChangeToken GetReloadToken() => _inner.GetReloadToken();
+    public IConfigurationSection GetSection(string key) => _inner.GetSection(key);
 }

@@ -1,0 +1,230 @@
+@page "/ai-settings"
+@rendermode InteractiveServer
+
+@inject MSC.IdeaForge.Application.AI.Queries.GetAIProviderSettingsHandler GetAIProviderSettingsHandler
+@inject MSC.IdeaForge.Application.AI.Commands.SaveAIProviderSettingHandler SaveAIProviderSettingHandler
+@inject MSC.IdeaForge.Domain.Interfaces.IAIProvider AIProvider
+@inject IJSRuntime JSRuntime
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 text-dark font-weight-bold mb-0">Yapay Zeka (AI) Ayarları</h1>
+            <p class="text-muted mb-0">Çoklu AI sağlayıcılarını (Gemini, OpenAI, Claude) yönetin, modelleri ve API anahtarlarını yapılandırın.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 10px;">
+            <span>@statusMessage</span>
+            <button type="button" class="btn-close" @onclick="() => statusMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 10px;">
+            <span>@errorMessage</span>
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        @foreach (var provider in defaultProviders)
+        {
+            var currentSetting = dbSettings.FirstOrDefault(s => s.ProviderName.Equals(provider.Name, StringComparison.OrdinalIgnoreCase)) 
+                                 ?? new MSC.IdeaForge.Application.AI.DTOs.AIProviderSettingDto { ProviderName = provider.Name, Model = provider.DefaultModel };
+
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 16px; transition: transform 0.2s; border: 1px solid #e9ecef;">
+                    <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fs-4">@provider.Logo</span>
+                            <h5 class="m-0 font-weight-bold text-dark">@provider.Name</h5>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" id="switch-@provider.Name" @bind="currentSetting.IsActive" />
+                        </div>
+                    </div>
+                    <div class="card-body px-4 py-3 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="mb-3">
+                                <label class="form-label text-dark font-weight-bold small">API Anahtarı (API Key)</label>
+                                <input type="password" class="form-control" placeholder="••••••••••••••••" @bind="currentSetting.ApiKey" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-dark font-weight-bold small">Model</label>
+                                <select class="form-select" @bind="currentSetting.Model">
+                                    @foreach (var model in provider.Models)
+                                    {
+                                        <option value="@model">@model</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="default-@provider.Name" @bind="currentSetting.IsDefault" />
+                                <label class="form-check-label small text-muted font-weight-bold" for="default-@provider.Name">
+                                    Varsayılan AI Sağlayıcısı Yap
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-outline-primary btn-sm flex-grow-1" @onclick="() => TestConnection(currentSetting)" disabled="@(isTesting || !currentSetting.IsActive)">
+                                @if (isTesting && testingProvider == provider.Name)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <span>Test ediliyor...</span>
+                                }
+                                else
+                                {
+                                    <span>Test Et</span>
+                                }
+                            </button>
+                            <button class="btn btn-primary btn-sm flex-grow-1" @onclick="() => SaveSetting(currentSetting)" disabled="@isSaving">
+                                Kaydet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<MSC.IdeaForge.Application.AI.DTOs.AIProviderSettingDto> dbSettings = new();
+    private string statusMessage;
+    private string errorMessage;
+    private bool isSaving = false;
+    private bool isTesting = false;
+    private string testingProvider = "";
+
+    // Varsayılan provider listesi
+    private readonly List<ProviderMeta> defaultProviders = new()
+    {
+        new("Gemini", "♊", "gemini-2.5-flash", new() { "gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro" }),
+        new("OpenAI", "🤖", "gpt-4o-mini", new() { "gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo" }),
+        new("Claude", "✍️", "claude-3-5-sonnet-20241022", new() { "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229" })
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettings();
+    }
+
+    private async Task LoadSettings()
+    {
+        try
+        {
+            var result = await GetAIProviderSettingsHandler.HandleAsync(new MSC.IdeaForge.Application.AI.Queries.GetAIProviderSettingsQuery());
+            dbSettings = result.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ayarlar yüklenirken hata: {ex.Message}";
+        }
+    }
+
+    private async Task SaveSetting(MSC.IdeaForge.Application.AI.DTOs.AIProviderSettingDto settingDto)
+    {
+        statusMessage = null;
+        errorMessage = null;
+
+        if (settingDto.IsActive && string.IsNullOrWhiteSpace(settingDto.ApiKey))
+        {
+            errorMessage = $"{settingDto.ProviderName} için API anahtarı boş bırakılamaz.";
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            var command = new MSC.IdeaForge.Application.AI.Commands.SaveAIProviderSettingCommand
+            {
+                Id = settingDto.Id,
+                ProviderName = settingDto.ProviderName,
+                ApiKey = settingDto.ApiKey.Trim(),
+                Model = settingDto.Model,
+                IsActive = settingDto.IsActive,
+                IsDefault = settingDto.IsDefault
+            };
+
+            await SaveAIProviderSettingHandler.HandleAsync(command);
+            statusMessage = $"{settingDto.ProviderName} ayarları başarıyla kaydedildi.";
+            await LoadSettings();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Kaydetme sırasında hata: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task TestConnection(MSC.IdeaForge.Application.AI.DTOs.AIProviderSettingDto settingDto)
+    {
+        statusMessage = null;
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(settingDto.ApiKey))
+        {
+            errorMessage = "Bağlantıyı test etmek için geçerli bir API anahtarı girmelisiniz.";
+            return;
+        }
+
+        isTesting = true;
+        testingProvider = settingDto.ProviderName;
+        StateHasChanged();
+
+        try
+        {
+            // Önce ayarları kaydet ki IAIProvider/DynamicAIConfiguration bu geçici test bilgilerini kullanabilsin
+            await SaveSetting(settingDto);
+
+            // AI sağlayıcısına ufak bir test çağrısı gönderiyoruz
+            var testResult = await AIProvider.AnalyzeProblemAsync(
+                "Bağlantı Testi", 
+                "Bu bir test açıklamasıdır. Lütfen sadece başarılı olduğunu onaylayan bir JSON nesnesi döndür.", 
+                "Test Sektörü"
+            );
+
+            if (testResult != null && !string.IsNullOrEmpty(testResult.Summary))
+            {
+                statusMessage = $"{settingDto.ProviderName} bağlantı testi başarılı! Sunucuya erişildi.";
+            }
+            else
+            {
+                errorMessage = $"{settingDto.ProviderName} API geçersiz veya boş yanıt döndürdü.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"{settingDto.ProviderName} bağlantı testi başarısız oldu: {ex.Message}";
+        }
+        finally
+        {
+            isTesting = false;
+            testingProvider = "";
+        }
+    }
+
+    private class ProviderMeta
+    {
+        public string Name { get; }
+        public string Logo { get; }
+        public string DefaultModel { get; }
+        public List<string> Models { get; }
+
+        public ProviderMeta(string name, string logo, string defaultModel, List<string> models)
+        {
+            Name = name;
+            Logo = logo;
+            DefaultModel = defaultModel;
+            Models = models;
+        }
+    }
+}

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using MSC.IdeaForge.Application;
 using MSC.IdeaForge.Infrastructure;
 using MSC.IdeaForge.Infrastructure.Persistence;
@@ -15,6 +16,12 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<MSC.IdeaForge.Infrastructure.BackgroundServices.RSSBackgroundService>();
 builder.Services.AddHostedService<MSC.IdeaForge.Infrastructure.BackgroundServices.EmailBackgroundService>();
+
+builder.Services.Configure<HostOptions>(options =>
+{
+    options.BackgroundServiceExceptionBehavior = 
+        BackgroundServiceExceptionBehavior.Ignore;
+});
 
 var app = builder.Build();
 

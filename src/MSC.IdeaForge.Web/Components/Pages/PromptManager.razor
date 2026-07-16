@@ -1,0 +1,317 @@
+@page "/prompt-manager"
+@rendermode InteractiveServer
+
+@inject MSC.IdeaForge.Application.AI.Queries.GetPromptsHandler GetPromptsHandler
+@inject MSC.IdeaForge.Application.AI.Commands.SavePromptHandler SavePromptHandler
+@inject IJSRuntime JSRuntime
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 text-dark font-weight-bold mb-0">Prompt Yöneticisi</h1>
+            <p class="text-muted mb-0">AI asistanının davranışlarını ve çıktı şablonlarını özelleştirin.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 10px;">
+            <span>@statusMessage</span>
+            <button type="button" class="btn-close" @onclick="() => statusMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert" style="border-radius: 10px;">
+            <span>@errorMessage</span>
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        @* SOL TARAF: PROMPT LİSTESİ *@
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm border-0" style="border-radius: 16px; border: 1px solid #e9ecef; max-height: 75vh; overflow-y: auto;">
+                <div class="card-header bg-white border-0 pt-4 pb-2">
+                    <h5 class="m-0 font-weight-bold text-dark"><span class="bi bi-list-task text-primary"></span> Prompt Tipleri</h5>
+                </div>
+                <div class="card-body px-3 py-2">
+                    <div class="list-group list-group-flush">
+                        @foreach (var type in Enum.GetValues<MSC.IdeaForge.Domain.Enums.PromptType>())
+                        {
+                            var isActive = selectedType == type;
+                            var dbPrompt = allPrompts.FirstOrDefault(p => p.PromptType == type && p.IsActive);
+                            var version = dbPrompt?.Version ?? 1;
+
+                            <button type="button" class="list-group-item list-group-item-action border-0 d-flex justify-content-between align-items-center mb-1 rounded @(isActive ? "active bg-primary text-white" : "")"
+                                    style="border-radius: 10px; transition: background 0.2s;"
+                                    @onclick="() => SelectPromptType(type)">
+                                <div>
+                                    <div class="font-weight-bold small @(isActive ? "text-white" : "text-dark")">@GetFriendlyName(type)</div>
+                                    <span class="small @(isActive ? "text-white-50" : "text-muted")">V@(version)</span>
+                                </div>
+                                <span class="badge @(dbPrompt != null ? "bg-success" : "bg-secondary") rounded-pill">
+                                    @(dbPrompt != null ? "Özel" : "Varsayılan")
+                                </span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* SAĞ TARAF: DÜZENLEME FORMU *@
+        <div class="col-12 col-md-8">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 16px; border: 1px solid #e9ecef;">
+                <div class="card-header bg-white border-0 pt-4 pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h5 class="m-0 font-weight-bold text-dark">Prompt Düzenle: @GetFriendlyName(selectedType)</h5>
+                        <p class="text-muted small mb-0">Değişken yer tutucularını (örn: {title}, {description}) prompt içeriğinde korumaya özen gösterin.</p>
+                    </div>
+                    <button class="btn btn-outline-warning btn-sm" @onclick="ResetToDefault">
+                        Varsayılana Dön
+                    </button>
+                </div>
+                <div class="card-body px-4 py-3 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="mb-3">
+                            <label class="form-label text-dark font-weight-bold small">Prompt Başlığı</label>
+                            <input type="text" class="form-control" @bind="promptName" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-dark font-weight-bold small">Açıklama</label>
+                            <input type="text" class="form-control" @bind="promptDescription" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-dark font-weight-bold small">Prompt İçeriği (System/User Instructions)</label>
+                            <textarea class="form-control" rows="12" style="font-family: monospace; font-size: 0.9rem;" @bind="promptContent"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-3" style="border-top: 1px solid #e9ecef;">
+                        @* Versiyon Geçmişi *@
+                        <div class="small">
+                            <span class="font-weight-bold text-dark d-block mb-1">Son 3 Versiyon Geçmişi:</span>
+                            @if (historyPrompts == null || !historyPrompts.Any())
+                            {
+                                <span class="text-muted">Geçmiş bulunmamaktadır.</span>
+                            }
+                            else
+                            {
+                                <div class="d-flex gap-2">
+                                    @foreach (var hist in historyPrompts)
+                                    {
+                                        <button class="btn btn-xs btn-outline-secondary" @onclick="() => LoadFromHistory(hist)" title="İçeriği Yükle">
+                                            V@(hist.Version) (@hist.CreatedAt.ToString("dd.MM"))
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <button class="btn btn-primary px-4" @onclick="SavePrompt" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            }
+                            <span>Prompt Kaydet</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<MSC.IdeaForge.Application.AI.DTOs.PromptDto> allPrompts = new();
+    private List<MSC.IdeaForge.Application.AI.DTOs.PromptDto> historyPrompts = new();
+    private MSC.IdeaForge.Domain.Enums.PromptType selectedType = MSC.IdeaForge.Domain.Enums.PromptType.ProblemAnalysis;
+
+    private string promptName = "";
+    private string promptDescription = "";
+    private string promptContent = "";
+
+    private string statusMessage;
+    private string errorMessage;
+    private bool isSaving = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPrompts();
+        SelectPromptType(selectedType);
+    }
+
+    private async Task LoadPrompts()
+    {
+        try
+        {
+            var result = await GetPromptsHandler.HandleAsync(new MSC.IdeaForge.Application.AI.Queries.GetPromptsQuery());
+            allPrompts = result.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Promptlar yüklenirken hata: {ex.Message}";
+        }
+    }
+
+    private void SelectPromptType(MSC.IdeaForge.Domain.Enums.PromptType type)
+    {
+        statusMessage = null;
+        errorMessage = null;
+        selectedType = type;
+
+        var dbPrompt = allPrompts.FirstOrDefault(p => p.PromptType == type && p.IsActive);
+        if (dbPrompt != null)
+        {
+            promptName = dbPrompt.Name;
+            promptDescription = dbPrompt.Description;
+            promptContent = dbPrompt.Content;
+        }
+        else
+        {
+            promptName = $"{GetFriendlyName(type)} Varsayılan Promptu";
+            promptDescription = "Sistem varsayılan prompt şablonu.";
+            promptContent = GetDefaultPromptContent(type);
+        }
+
+        // Geçmişi yükle
+        historyPrompts = allPrompts
+            .Where(p => p.PromptType == type)
+            .OrderByDescending(p => p.Version)
+            .Take(3)
+            .ToList();
+    }
+
+    private async Task SavePrompt()
+    {
+        statusMessage = null;
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(promptContent))
+        {
+            errorMessage = "Prompt içeriği boş bırakılamaz.";
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            var active = allPrompts.FirstOrDefault(p => p.PromptType == selectedType && p.IsActive);
+
+            var command = new MSC.IdeaForge.Application.AI.Commands.SavePromptCommand
+            {
+                Id = active?.Id,
+                Name = promptName.Trim(),
+                Description = promptDescription.Trim(),
+                PromptType = selectedType,
+                Content = promptContent.Trim(),
+                IsActive = true
+            };
+
+            await SavePromptHandler.HandleAsync(command);
+            statusMessage = "Prompt şablonu başarıyla kaydedildi. AI çağrılarında yeni şablon kullanılacaktır.";
+            await LoadPrompts();
+            SelectPromptType(selectedType);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Prompt kaydedilirken hata: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void ResetToDefault()
+    {
+        promptContent = GetDefaultPromptContent(selectedType);
+        promptName = $"{GetFriendlyName(selectedType)} Varsayılan Promptu";
+        promptDescription = "Sistem varsayılan prompt şablonu.";
+        statusMessage = "Varsayılan prompt içeriği forma yüklendi. Uygulamak için kaydetmelisiniz.";
+    }
+
+    private void LoadFromHistory(MSC.IdeaForge.Application.AI.DTOs.PromptDto hist)
+    {
+        promptContent = hist.Content;
+        promptName = hist.Name;
+        promptDescription = hist.Description;
+        statusMessage = $"Versiyon {hist.Version} içeriği yüklendi.";
+    }
+
+    private string GetFriendlyName(MSC.IdeaForge.Domain.Enums.PromptType type) => type switch
+    {
+        MSC.IdeaForge.Domain.Enums.PromptType.ProblemAnalysis => "Problem Analizi",
+        MSC.IdeaForge.Domain.Enums.PromptType.OpportunityScore => "Fırsat Puanlama",
+        MSC.IdeaForge.Domain.Enums.PromptType.Research => "Pazar & Rakip Araştırması",
+        MSC.IdeaForge.Domain.Enums.PromptType.Solutions => "Çözüm Önerileri",
+        MSC.IdeaForge.Domain.Enums.PromptType.MVPPlan => "MVP Planlama",
+        MSC.IdeaForge.Domain.Enums.PromptType.Revenue => "Gelir Analizi",
+        MSC.IdeaForge.Domain.Enums.PromptType.Competitors => "Detaylı Rakip Analizi",
+        MSC.IdeaForge.Domain.Enums.PromptType.Trends => "Trend Analizi",
+        MSC.IdeaForge.Domain.Enums.PromptType.Sector => "Sektör Analizi",
+        MSC.IdeaForge.Domain.Enums.PromptType.MarketSize => "Pazar Büyüklüğü (TAM/SAM/SOM)",
+        MSC.IdeaForge.Domain.Enums.PromptType.BusinessCanvas => "İş Modeli Kanvası (BMC)",
+        MSC.IdeaForge.Domain.Enums.PromptType.CustomerPersona => "Hedef Müşteri Personası",
+        MSC.IdeaForge.Domain.Enums.PromptType.PricingStrategy => "Fiyatlandırma Stratejisi",
+        MSC.IdeaForge.Domain.Enums.PromptType.RiskMatrix => "Risk Matrisi",
+        MSC.IdeaForge.Domain.Enums.PromptType.ActionPlan => "30-60-90 Günlük Aksiyon Planı",
+        MSC.IdeaForge.Domain.Enums.PromptType.InvestorBrief => "Yatırımcı Briefing",
+        MSC.IdeaForge.Domain.Enums.PromptType.Grants => "Hibe & Teşvikler",
+        MSC.IdeaForge.Domain.Enums.PromptType.TeamNeeds => "Ekip Rolleri İhtiyacı",
+        MSC.IdeaForge.Domain.Enums.PromptType.StartupChecklist => "Başlangıç Kontrol Listesi",
+        MSC.IdeaForge.Domain.Enums.PromptType.ValidationQuestions => "Doğrulama Soruları",
+        MSC.IdeaForge.Domain.Enums.PromptType.RelatedProblems => "Bağlantılı Problemler",
+        MSC.IdeaForge.Domain.Enums.PromptType.SimilarProblems => "Semantik Benzerlik Analizi",
+        MSC.IdeaForge.Domain.Enums.PromptType.PatentAnalysis => "Patent & Fikri Mülkiyet Analizi",
+        _ => type.ToString()
+    };
+
+    private string GetDefaultPromptContent(MSC.IdeaForge.Domain.Enums.PromptType type) => type switch
+    {
+        MSC.IdeaForge.Domain.Enums.PromptType.SimilarProblems => @"Aşağıdaki sorgu (sorgulanan problem) ile verilen mevcut problemler listesini karşılaştır. Semantik olarak en benzer olanları bul ve benzerlik skoru ver (0.0 ile 1.0 arasında). Yanıtı mutlaka JSON formatında döndür.
+Yanıt şeması bir JSON array olmalıdır:
+[
+  {
+    ""ProblemId"": ""guid"",
+    ""Title"": ""başlık"",
+    ""SimilarityScore"": 0.85,
+    ""Reason"": ""Türkçe benzerlik nedeni açıklaması""
+  }
+]
+
+Sorgu: {query}
+
+Problemler Listesi:
+{problems}",
+
+        MSC.IdeaForge.Domain.Enums.PromptType.PatentAnalysis => @"Aşağıdaki fikir/problem için detaylı patent durum analizi yap. Yanıtı mutlaka JSON formatında döndür.
+JSON formatı şu alanları içermelidir:
+- PatentRisk (Düşük/Orta/Yüksek değerlerinden biri)
+- ExistingPatents (Benzer mevcut patent veya teknolojilerin Türkçe adları listesi, string array)
+- PatentableAspects (Fikrin patentlenebilir yönlerinin Türkçe listesi, string array)
+- Recommendations (Önerilen adımlar ve tavsiyelerin Türkçe listesi, string array)
+- FreedomToOperate (Fikrin ticari faaliyette bulunma serbestliği (FTO) durumunun Türkçe değerlendirmesi, string)
+
+Fikir Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector}
+
+Yanıt şeması tam olarak şu şekilde olmalıdır:
+{
+  ""PatentRisk"": ""Orta"",
+  ""ExistingPatents"": [""Mevcut Patent 1"", ""Mevcut Patent 2""],
+  ""PatentableAspects"": [""Patentlenebilir Yön 1"", ""Patentlenebilir Yön 2""],
+  ""Recommendations"": [""Tavsiye 1"", ""Tavsiye 2""],
+  ""FreedomToOperate"": ""Bu fikrin hayata geçirilmesinde şu riskler mevcuttur...""
+}",
+        _ => @"Aşağıdaki problemi analiz et ve yanıtı mutlaka JSON formatında döndür.
+Problem Detayları:
+Başlık: {title}
+Açıklama: {description}
+Sektör: {sector}"
+    };
+}

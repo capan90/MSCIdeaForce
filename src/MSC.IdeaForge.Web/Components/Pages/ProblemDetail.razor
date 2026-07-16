@@ -1,5 +1,6 @@
 @page "/problems/{Id:guid}"
 @rendermode InteractiveServer
+@implements IDisposable
 
 @using MSC.IdeaForge.Domain.Enums
 @inject MSC.IdeaForge.Application.Problems.Queries.GetProblemByIdHandler GetProblemByIdHandler
@@ -151,6 +152,9 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link @(activeTab == "ai_analysis" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("ai_analysis")'>AI Analizi</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "patent" ? "active font-weight-bold" : "")" @onclick='() => SetActiveTab("patent")'>Patent</button>
             </li>
         </ul>
 
@@ -1497,6 +1501,123 @@
                 </div>
             </div>
         }
+        else if (activeTab == "patent")
+        {
+            @* Patent Analiz Bölümü *@
+            <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px; background-color: #fff;">
+                <div class="card-header text-white py-3" style="background: linear-gradient(135deg, #6f42c1, #8553d1); border-bottom: none;">
+                    <h5 class="m-0 font-weight-bold d-flex align-items-center gap-2">
+                        <span class="bi bi-shield-check"></span> Patent & Fikri Mülkiyet Analizi
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (!string.IsNullOrEmpty(patentErrorMessage))
+                    {
+                        <div class="alert alert-danger py-2 mb-3 small">@patentErrorMessage</div>
+                    }
+                    
+                    @if (isPatentAnalyzing)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border" role="status" style="color: #6f42c1;"></div>
+                            <p class="mt-2 text-muted">Patent riskleri ve benzer teknolojiler inceleniyor, lütfen bekleyin...</p>
+                        </div>
+                    }
+                    else if (patentResult == null)
+                    {
+                        <div class="p-3 bg-light rounded text-center py-5">
+                            <p class="text-muted mb-3">Bu fikrin patentlenebilirlik ve FTO (Freedom to Operate) durumu henüz analiz edilmemiş.</p>
+                            <button class="btn btn-primary px-4" type="button" @onclick="async () => await RunPatentAnalysis()" style="background-color: #6f42c1; border-color: #6f42c1;">
+                                🤖 Patent Analizi Yap
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded h-100">
+                                    <span class="text-muted d-block small">Patent İhlal Riski</span>
+                                    <span class="badge @(GetPatentRiskBadgeClass(patentResult.PatentRisk)) mt-2 px-3 py-1.5" style="font-size: 0.95rem;">
+                                        @patentResult.PatentRisk
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="p-3 bg-light rounded h-100">
+                                    <span class="text-muted d-block small">Freedom to Operate (FTO) Değerlendirmesi</span>
+                                    <p class="text-dark small mt-2 mb-0 font-weight-bold" style="line-height: 1.5;">@patentResult.FreedomToOperate</p>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="p-3 bg-light rounded h-100">
+                                    <span class="text-muted d-block small font-weight-bold">Benzer/İlgili Mevcut Patentler</span>
+                                    @if (patentResult.ExistingPatents != null && patentResult.ExistingPatents.Any())
+                                    {
+                                        <ul class="list-unstyled mt-2 mb-0 small">
+                                            @foreach (var pat in patentResult.ExistingPatents)
+                                            {
+                                                <li class="mb-1 text-dark"><span class="bi bi-file-earmark-text text-secondary me-1"></span> @pat</li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small mt-2 d-block">Mevcut patent kaydı tespit edilmedi.</span>
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="p-3 bg-light rounded h-100">
+                                    <span class="text-muted d-block small font-weight-bold">Patentlenebilir Yenilikçi Yönler</span>
+                                    @if (patentResult.PatentableAspects != null && patentResult.PatentableAspects.Any())
+                                    {
+                                        <ul class="list-unstyled mt-2 mb-0 small">
+                                            @foreach (var asp in patentResult.PatentableAspects)
+                                            {
+                                                <li class="mb-1 text-dark"><span class="bi bi-check-circle-fill text-success me-1"></span> @asp</li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small mt-2 d-block">Patentlenebilir yön bulunamadı.</span>
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="p-3 bg-light rounded">
+                                    <span class="text-muted d-block small font-weight-bold">Stratejik Öneriler & Yol Haritası</span>
+                                    @if (patentResult.Recommendations != null && patentResult.Recommendations.Any())
+                                    {
+                                        <ul class="list-unstyled mt-2 mb-0 small">
+                                            @foreach (var rec in patentResult.Recommendations)
+                                            {
+                                                <li class="mb-1 text-dark"><span class="bi bi-arrow-right-short text-primary me-1"></span> @rec</li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small mt-2 d-block">Öneri bulunmamaktadır.</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-end mt-3">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="async () => await RunPatentAnalysis()">
+                                <span class="bi bi-arrow-clockwise"></span> Patent Analizini Yenile
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        }
     }
 </div>
 
@@ -1604,6 +1725,7 @@
     // Koordinatör state alanları
     private List<AgentProgress>? coordinatorProgress;
     private bool isFullAnalysisRunning = false;
+    private System.Threading.Timer? _timer;
 
     // Gelir analizi state alanları
     private MSC.IdeaForge.Application.Revenues.DTOs.RevenueAnalysisDto? revenueDto;
@@ -2551,38 +2673,83 @@
     /// <summary>
     /// Koordinatör aracılığıyla tüm yapay zeka analiz adımlarını sırayla tetikler.
     /// </summary>
-    private async Task StartFullAiAnalysis()
+    private void StartFullAiAnalysis()
     {
         isFullAnalysisRunning = true;
         coordinatorProgress = new List<AgentProgress>();
         StateHasChanged();
 
-        try
-        {
-            await AgentCoordinator.RunFullAnalysisAsync(Id, progressList =>
-            {
-                coordinatorProgress = progressList.ToList();
-                InvokeAsync(StateHasChanged);
-            });
+        StartTimerIfRunning();
 
-            // Analiz tamamlanınca tüm sekmelerin verilerini veritabanından yeniden yüklüyoruz.
-            await LoadSignals();
-            await LoadOpportunity();
-            await LoadValidation();
-            await LoadProblemAnalysis();
-            await LoadResearch();
-            await LoadSolutions();
-            await LoadMVPPlan();
-        }
-        catch (Exception ex)
+        _ = Task.Run(async () =>
         {
-            await JsRuntime.InvokeVoidAsync("alert", $"Analiz koordinatörü genel hata: {ex.Message}");
-        }
-        finally
+            try
+            {
+                await AgentCoordinator.RunFullAnalysisAsync(Id, async progressList =>
+                {
+                    coordinatorProgress = progressList.ToList();
+                    await InvokeAsync(StateHasChanged);
+                });
+
+                // Analiz tamamlanınca tüm sekmelerin verilerini veritabanından yeniden yüklüyoruz.
+                await LoadSignals();
+                await LoadOpportunity();
+                await LoadValidation();
+                await LoadProblemAnalysis();
+                await LoadResearch();
+                await LoadSolutions();
+                await LoadMVPPlan();
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await JsRuntime.InvokeVoidAsync("alert", $"Analiz koordinatörü genel hata: {ex.Message}");
+                    });
+                }
+                catch { }
+            }
+            finally
+            {
+                isFullAnalysisRunning = false;
+                StopTimer();
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-            isFullAnalysisRunning = false;
-            StateHasChanged();
+            StartTimerIfRunning();
         }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private void StartTimerIfRunning()
+    {
+        if (isFullAnalysisRunning && _timer == null)
+        {
+            _timer = new System.Threading.Timer(async _ =>
+            {
+                await InvokeAsync(StateHasChanged);
+            }, null, 0, 2000);
+        }
+    }
+
+    private void StopTimer()
+    {
+        _timer?.Dispose();
+        _timer = null;
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+        _timer = null;
     }
 
     /// <summary>
@@ -2983,4 +3150,41 @@
             decisions = new List<DecisionDto>();
         }
     }
+
+    private MSC.IdeaForge.Domain.ValueObjects.PatentAnalysisResult? patentResult;
+    private bool isPatentAnalyzing = false;
+    private string? patentErrorMessage;
+
+    private async Task RunPatentAnalysis()
+    {
+        Console.WriteLine("[RunPatentAnalysis] Tetiklendi. Problem başlığı: " + (problem?.Title ?? "null"));
+        if (problem == null) return;
+        
+        isPatentAnalyzing = true;
+        patentErrorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            patentResult = await AIProvider.AnalyzePatentsAsync(problem.Title, problem.Description, problem.Sector);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Patent analizi hatası: {ex.Message}");
+            patentErrorMessage = $"Patent analizi sırasında hata oluştu: {ex.Message}";
+        }
+        finally
+        {
+            isPatentAnalyzing = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetPatentRiskBadgeClass(string risk) => risk?.ToLower() switch
+    {
+        "düşük" or "low" => "bg-success text-white",
+        "orta" or "medium" => "bg-warning text-dark",
+        "yüksek" or "high" => "bg-danger text-white",
+        _ => "bg-secondary text-white"
+    };
 }

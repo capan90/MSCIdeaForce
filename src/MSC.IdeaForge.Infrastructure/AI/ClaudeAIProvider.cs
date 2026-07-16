@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using MSC.IdeaForge.Domain.Interfaces;
 using MSC.IdeaForge.Domain.ValueObjects;
+using MSC.IdeaForge.Domain.Entities;
 
 namespace MSC.IdeaForge.Infrastructure.AI;
 
@@ -249,6 +250,16 @@ Sen profesyonel bir problem analisti yapay zekasın. Çıktı olarak sadece ve s
     }
 
     public Task<ActionPlanResult> GenerateActionPlanAsync(string title, string description, string? sector, string? solutionType)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<List<SimilarProblemResult>> FindSimilarProblemsAsync(string query, List<Problem> problems)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<PatentAnalysisResult> AnalyzePatentsAsync(string title, string description, string? sector)
     {
         throw new NotImplementedException();
     }

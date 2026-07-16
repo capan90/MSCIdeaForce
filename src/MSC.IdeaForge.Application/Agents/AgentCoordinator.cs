@@ -68,6 +68,7 @@ public class AgentCoordinator
     /// </summary>
     public async Task<List<AgentProgress>> RunFullAnalysisAsync(Guid problemId, Action<List<AgentProgress>>? onProgress = null, CancellationToken cancellationToken = default)
     {
+        Console.WriteLine("Coordinator başladı");
         var steps = new List<AgentProgress>
         {
             new() { Step = "Problem Analizi", Status = AgentStepStatus.Pending },
@@ -92,9 +93,11 @@ public class AgentCoordinator
         }
 
         // --- 1. PROBLEM ANALİZİ ---
+        Console.WriteLine("Adım başlıyor: Problem Analizi");
         ReportProgress(0, AgentStepStatus.Running);
         try
         {
+            Console.WriteLine("AnalyzeProblemHandler.HandleAsync çağrılıyor");
             await _analyzeProblemHandler.HandleAsync(problemId, cancellationToken);
 
             // Problem analizi tamamlandığında problem durumunu Analyzed'e çekiyoruz
@@ -108,10 +111,12 @@ public class AgentCoordinator
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Problem Analizi hatası: {ex.Message}");
             ReportProgress(0, AgentStepStatus.Failed, ex.Message);
         }
 
         // --- 2. ARAŞTIRMA ---
+        Console.WriteLine("Adım başlıyor: Araştırma");
         ReportProgress(1, AgentStepStatus.Running);
         try
         {
@@ -120,10 +125,12 @@ public class AgentCoordinator
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Araştırma hatası: {ex.Message}");
             ReportProgress(1, AgentStepStatus.Failed, ex.Message);
         }
 
         // --- 3. FIRSAT SKORLAMA ---
+        Console.WriteLine("Adım başlıyor: Fırsat Skorlama");
         ReportProgress(2, AgentStepStatus.Running);
         try
         {
@@ -145,10 +152,12 @@ public class AgentCoordinator
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Fırsat Skorlama hatası: {ex.Message}");
             ReportProgress(2, AgentStepStatus.Failed, ex.Message);
         }
 
         // --- 4. ÇÖZÜM ÖNERİLERİ ---
+        Console.WriteLine("Adım başlıyor: Çözüm Önerisi");
         ReportProgress(3, AgentStepStatus.Running);
         string? recommendedSolutionType = null;
         try
@@ -164,10 +173,12 @@ public class AgentCoordinator
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Çözüm Önerisi hatası: {ex.Message}");
             ReportProgress(3, AgentStepStatus.Failed, ex.Message);
         }
 
         // --- 5. MVP PLANI ---
+        Console.WriteLine("Adım başlıyor: MVP Planı");
         ReportProgress(4, AgentStepStatus.Running);
         try
         {
@@ -180,10 +191,12 @@ public class AgentCoordinator
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"MVP Planı hatası: {ex.Message}");
             ReportProgress(4, AgentStepStatus.Failed, ex.Message);
         }
 
         // --- 6. GELİR ANALİZİ ---
+        Console.WriteLine("Adım başlıyor: Gelir Analizi");
         ReportProgress(5, AgentStepStatus.Running);
         try
         {
@@ -196,10 +209,12 @@ public class AgentCoordinator
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Gelir Analizi hatası: {ex.Message}");
             ReportProgress(5, AgentStepStatus.Failed, ex.Message);
         }
 
         // --- 7. DOĞRULAMA SORULARI ---
+        Console.WriteLine("Adım başlıyor: Doğrulama Soruları");
         ReportProgress(6, AgentStepStatus.Running);
         try
         {
@@ -211,10 +226,12 @@ public class AgentCoordinator
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Doğrulama Soruları hatası: {ex.Message}");
             ReportProgress(6, AgentStepStatus.Failed, ex.Message);
         }
 
         // --- 8. RAKİP ANALİZİ ---
+        Console.WriteLine("Adım başlıyor: Rakip Analizi");
         ReportProgress(7, AgentStepStatus.Running);
         try
         {
@@ -226,6 +243,7 @@ public class AgentCoordinator
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Rakip Analizi hatası: {ex.Message}");
             ReportProgress(7, AgentStepStatus.Failed, ex.Message);
         }
 

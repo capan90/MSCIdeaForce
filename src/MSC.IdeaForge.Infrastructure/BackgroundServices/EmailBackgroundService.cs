@@ -26,28 +26,40 @@ public class EmailBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("E-posta Zamanlanmış Görevi Başlatıldı.");
-
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
-            {
-                var now = DateTime.Now;
-                // Sabah 09:00 civarı ve bugün henüz gönderilmediyse çalıştır
-                if (now.Hour == 9 && (_lastSentDate == null || _lastSentDate.Value.Date != now.Date))
-                {
-                    _logger.LogInformation("Günlük özet e-postası tetikleniyor...");
-                    await SendDailySummaryAsync(stoppingToken);
-                    _lastSentDate = now;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Günlük özet gönderimi sırasında hata oluştu: {Message}", ex.Message);
-            }
+            _logger.LogInformation("E-posta Zamanlanmış Görevi Başlatıldı.");
 
-            // Her 30 dakikada bir kontrol et
-            await Task.Delay(TimeSpan.FromMinutes(30), stoppingToken);
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    var now = DateTime.Now;
+                    // Sabah 09:00 civarı ve bugün henüz gönderilmediyse çalıştır
+                    if (now.Hour == 9 && (_lastSentDate == null || _lastSentDate.Value.Date != now.Date))
+                    {
+                        _logger.LogInformation("Günlük özet e-postası tetikleniyor...");
+                        await SendDailySummaryAsync(stoppingToken);
+                        _lastSentDate = now;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Günlük özet gönderimi sırasında hata oluştu: {Message}", ex.Message);
+                }
+
+                // Her 30 dakikada bir kontrol et
+                await Task.Delay(TimeSpan.FromMinutes(30), stoppingToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // CancellationToken iptal olunca sessizce çık
+        }
+        catch (Exception ex)
+        {
+            // Hata olunca uygulamayı durdurma, sadece logla
+            _logger.LogError(ex, "E-posta Zamanlanmış Görevi beklenmedik bir hata nedeniyle durduruldu: {Message}", ex.Message);
         }
     }
 

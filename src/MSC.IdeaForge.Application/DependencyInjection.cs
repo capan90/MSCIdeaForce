@@ -45,6 +45,8 @@ using MSC.IdeaForge.Application.ActionPlans.Commands;
 using MSC.IdeaForge.Application.ActionPlans.Queries;
 using MSC.IdeaForge.Application.Automation.Commands;
 using MSC.IdeaForge.Application.Automation.Queries;
+using MSC.IdeaForge.Application.AI.Commands;
+using MSC.IdeaForge.Application.AI.Queries;
 
 namespace MSC.IdeaForge.Application;
 
@@ -179,6 +181,13 @@ public static class DependencyInjection
         services.AddScoped<SaveEmailSettingHandler>();
         services.AddScoped<GetEmailSettingHandler>();
         services.AddScoped<TriggerRSSScanHandler>();
+
+        // AI Ayarları & Prompt Yönetimi
+        services.AddScoped<SaveAIProviderSettingHandler>();
+        services.AddScoped<GetAIProviderSettingsHandler>();
+        services.AddScoped<SavePromptHandler>();
+        services.AddScoped<GetPromptsHandler>();
+        services.AddScoped<SemanticSearchHandler>();
 
         return services;
     }

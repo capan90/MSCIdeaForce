@@ -31,6 +31,8 @@ public class AppDbContext : DbContext
     public DbSet<ActionPlan> ActionPlans => Set<ActionPlan>();
     public DbSet<RSSFeed> RSSFeeds => Set<RSSFeed>();
     public DbSet<EmailSetting> EmailSettings => Set<EmailSetting>();
+    public DbSet<AIProviderSetting> AIProviderSettings => Set<AIProviderSetting>();
+    public DbSet<AIPrompt> AIPrompts => Set<AIPrompt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -199,6 +201,21 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<EmailSetting>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<AIProviderSetting>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProviderName).IsRequired().HasMaxLength(200);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        modelBuilder.Entity<AIPrompt>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Content).IsRequired();
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }
