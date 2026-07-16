@@ -132,7 +132,7 @@
     /// <summary>
     /// Seçili problem için pazar büyüklüğünü hesaplar.
     /// </summary>
-    private async Task Calculate()
+    private void Calculate()
     {
         var problem = problems?.FirstOrDefault(p => p.Id == selectedProblemId);
         if (problem is null) return;
@@ -142,20 +142,24 @@
         isCalculating = true;
         result = null;
         StateHasChanged();
-        try
+
+        _ = Task.Run(async () =>
         {
-            result = await AIProvider.CalculateMarketSizeAsync(problem.Title, problem.Description, problem.Sector);
-        }
-        catch (Exception ex)
-        {
-            message = $"Hesaplama sırasında bir hata oluştu: {ex.Message}";
-            isError = true;
-        }
-        finally
-        {
-            isCalculating = false;
-            StateHasChanged();
-        }
+            try
+            {
+                result = await AIProvider.CalculateMarketSizeAsync(problem.Title, problem.Description, problem.Sector);
+            }
+            catch (Exception ex)
+            {
+                message = $"Hesaplama sırasında bir hata oluştu: {ex.Message}";
+                isError = true;
+            }
+            finally
+            {
+                isCalculating = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     /// <summary>

@@ -146,7 +146,7 @@
     /// <summary>
     /// Seçili problem için AI ile canvas üretir ve alanları doldurur.
     /// </summary>
-    private async Task Generate()
+    private void Generate()
     {
         if (selectedProblemId == Guid.Empty) return;
 
@@ -154,22 +154,26 @@
         copyMessage = "";
         isGenerating = true;
         StateHasChanged();
-        try
+
+        _ = Task.Run(async () =>
         {
-            var dto = await GenerateBusinessCanvasHandler.HandleAsync(
-                new MSC.IdeaForge.Application.BusinessCanvases.Commands.GenerateBusinessCanvasCommand { ProblemId = selectedProblemId });
-            FillFields(dto);
-        }
-        catch (Exception ex)
-        {
-            message = $"Canvas oluşturulurken bir hata oluştu: {ex.Message}";
-            isError = true;
-        }
-        finally
-        {
-            isGenerating = false;
-            StateHasChanged();
-        }
+            try
+            {
+                var dto = await GenerateBusinessCanvasHandler.HandleAsync(
+                    new MSC.IdeaForge.Application.BusinessCanvases.Commands.GenerateBusinessCanvasCommand { ProblemId = selectedProblemId });
+                FillFields(dto);
+            }
+            catch (Exception ex)
+            {
+                message = $"Canvas oluşturulurken bir hata oluştu: {ex.Message}";
+                isError = true;
+            }
+            finally
+            {
+                isGenerating = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     /// <summary>

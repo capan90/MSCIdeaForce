@@ -113,7 +113,7 @@
     /// <summary>
     /// Seçili ürün için yapay zeka ile fiyatlandırma stratejisi üretir.
     /// </summary>
-    private async Task Generate()
+    private void Generate()
     {
         var problem = problems?.FirstOrDefault(p => p.Id == selectedProblemId);
         if (problem is null) return;
@@ -122,20 +122,24 @@
         isGenerating = true;
         result = null;
         StateHasChanged();
-        try
+
+        _ = Task.Run(async () =>
         {
-            // Çözüm tipi ve hedef müşteri bu sayfada bağlam olarak geçilmiyor (opsiyonel)
-            result = await AIProvider.GeneratePricingStrategyAsync(problem.Title, problem.Description, problem.Sector, null, null);
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Fiyatlandırma stratejisi oluşturulurken bir hata oluştu: {ex.Message}";
-        }
-        finally
-        {
-            isGenerating = false;
-            StateHasChanged();
-        }
+            try
+            {
+                // Çözüm tipi ve hedef müşteri bu sayfada bağlam olarak geçilmiyor (opsiyonel)
+                result = await AIProvider.GeneratePricingStrategyAsync(problem.Title, problem.Description, problem.Sector, null, null);
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Fiyatlandırma stratejisi oluşturulurken bir hata oluştu: {ex.Message}";
+            }
+            finally
+            {
+                isGenerating = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     // Etiketli metin kutusu render eder

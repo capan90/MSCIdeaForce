@@ -108,7 +108,7 @@
     /// <summary>
     /// Seçili problem için yapay zeka gelir analizini çalıştırır ve sonucu kaydeder.
     /// </summary>
-    private async Task RunRevenueAnalysis()
+    private void RunRevenueAnalysis()
     {
         if (selectedProblemId == Guid.Empty) return;
 
@@ -116,19 +116,22 @@
         isAnalyzing = true;
         StateHasChanged();
 
-        try
+        _ = Task.Run(async () =>
         {
-            result = await AnalyzeRevenueHandler.HandleAsync(
-                new MSC.IdeaForge.Application.Revenues.Commands.AnalyzeRevenueCommand { ProblemId = selectedProblemId });
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Gelir analizi sırasında bir hata oluştu: {ex.Message}";
-        }
-        finally
-        {
-            isAnalyzing = false;
-            StateHasChanged();
-        }
+            try
+            {
+                result = await AnalyzeRevenueHandler.HandleAsync(
+                    new MSC.IdeaForge.Application.Revenues.Commands.AnalyzeRevenueCommand { ProblemId = selectedProblemId });
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Gelir analizi sırasında bir hata oluştu: {ex.Message}";
+            }
+            finally
+            {
+                isAnalyzing = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 }

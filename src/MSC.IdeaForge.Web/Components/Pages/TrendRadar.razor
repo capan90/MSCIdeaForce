@@ -121,26 +121,29 @@
     /// <summary>
     /// Seçilen trend için yapay zeka analizini çalıştırır ve sonucu kaydeder.
     /// </summary>
-    private async Task AnalyzeTrend(string trend)
+    private void AnalyzeTrend(string trend)
     {
         errorMessage = "";
         analyzingTrend = trend;
         StateHasChanged();
 
-        try
+        _ = Task.Run(async () =>
         {
-            var result = await AnalyzeTrendHandler.HandleAsync(
-                new MSC.IdeaForge.Application.Trends.Commands.AnalyzeTrendCommand { TrendName = trend });
-            analyses[trend] = result;
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"'{trend}' analiz edilirken bir hata oluştu: {ex.Message}";
-        }
-        finally
-        {
-            analyzingTrend = null;
-            StateHasChanged();
-        }
+            try
+            {
+                var result = await AnalyzeTrendHandler.HandleAsync(
+                    new MSC.IdeaForge.Application.Trends.Commands.AnalyzeTrendCommand { TrendName = trend });
+                analyses[trend] = result;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"'{trend}' analiz edilirken bir hata oluştu: {ex.Message}";
+            }
+            finally
+            {
+                analyzingTrend = null;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 }

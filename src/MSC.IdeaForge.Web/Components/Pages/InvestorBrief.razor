@@ -142,7 +142,7 @@
     /// <summary>
     /// Seçili problem için yapay zeka yatırımcı briefingini üretir.
     /// </summary>
-    private async Task GenerateBrief()
+    private void GenerateBrief()
     {
         if (selectedProblemId == Guid.Empty) return;
 
@@ -150,20 +150,24 @@
         copyMessage = "";
         isGenerating = true;
         StateHasChanged();
-        try
+
+        _ = Task.Run(async () =>
         {
-            brief = await GenerateInvestorBriefHandler.HandleAsync(
-                new MSC.IdeaForge.Application.InvestorBriefs.Commands.GenerateInvestorBriefCommand { ProblemId = selectedProblemId });
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Briefing oluşturulurken bir hata oluştu: {ex.Message}";
-        }
-        finally
-        {
-            isGenerating = false;
-            StateHasChanged();
-        }
+            try
+            {
+                brief = await GenerateInvestorBriefHandler.HandleAsync(
+                    new MSC.IdeaForge.Application.InvestorBriefs.Commands.GenerateInvestorBriefCommand { ProblemId = selectedProblemId });
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Briefing oluşturulurken bir hata oluştu: {ex.Message}";
+            }
+            finally
+            {
+                isGenerating = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     /// <summary>

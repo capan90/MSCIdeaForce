@@ -168,7 +168,7 @@
     /// <summary>
     /// Seçili proje için yapay zeka ile risk analizini çalıştırır (henüz kaydetmez).
     /// </summary>
-    private async Task Analyze()
+    private void Analyze()
     {
         var problem = problems?.FirstOrDefault(p => p.Id == selectedProblemId);
         if (problem is null) return;
@@ -176,32 +176,36 @@
         message = "";
         isAnalyzing = true;
         StateHasChanged();
-        try
+
+        _ = Task.Run(async () =>
         {
-            var suggestions = await AIProvider.GenerateRiskMatrixAsync(problem.Title, problem.Description, problem.Sector);
-            risks = suggestions.Select(s => new RiskDto
+            try
             {
-                ProblemId = selectedProblemId,
-                RiskName = s.RiskName,
-                Category = s.Category,
-                Probability = s.Probability,
-                Impact = s.Impact,
-                RiskScore = s.Probability * s.Impact,
-                MitigationStrategy = s.MitigationStrategy,
-                Owner = s.Owner,
-                Status = string.IsNullOrWhiteSpace(s.Status) ? "Açık" : s.Status
-            }).ToList();
-        }
-        catch (Exception ex)
-        {
-            message = $"Risk analizi sırasında bir hata oluştu: {ex.Message}";
-            isError = true;
-        }
-        finally
-        {
-            isAnalyzing = false;
-            StateHasChanged();
-        }
+                var suggestions = await AIProvider.GenerateRiskMatrixAsync(problem.Title, problem.Description, problem.Sector);
+                risks = suggestions.Select(s => new RiskDto
+                {
+                    ProblemId = selectedProblemId,
+                    RiskName = s.RiskName,
+                    Category = s.Category,
+                    Probability = s.Probability,
+                    Impact = s.Impact,
+                    RiskScore = s.Probability * s.Impact,
+                    MitigationStrategy = s.MitigationStrategy,
+                    Owner = s.Owner,
+                    Status = string.IsNullOrWhiteSpace(s.Status) ? "Açık" : s.Status
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                message = $"Risk analizi sırasında bir hata oluştu: {ex.Message}";
+                isError = true;
+            }
+            finally
+            {
+                isAnalyzing = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     /// <summary>

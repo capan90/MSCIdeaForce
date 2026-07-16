@@ -145,7 +145,7 @@
     /// <summary>
     /// Seçili proje için yapay zeka ile ekip ihtiyaç analizini çalıştırır.
     /// </summary>
-    private async Task Analyze()
+    private void Analyze()
     {
         var problem = problems?.FirstOrDefault(p => p.Id == selectedProblemId);
         if (problem is null) return;
@@ -154,20 +154,24 @@
         isAnalyzing = true;
         roles = null;
         StateHasChanged();
-        try
+
+        _ = Task.Run(async () =>
         {
-            // Çözüm tipi opsiyoneldir; bu sayfada bağlam olarak geçilmiyor
-            roles = await AIProvider.AnalyzeTeamNeedsAsync(problem.Title, problem.Description, problem.Sector, null);
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Ekip analizi sırasında bir hata oluştu: {ex.Message}";
-        }
-        finally
-        {
-            isAnalyzing = false;
-            StateHasChanged();
-        }
+            try
+            {
+                // Çözüm tipi opsiyoneldir; bu sayfada bağlam olarak geçilmiyor
+                roles = await AIProvider.AnalyzeTeamNeedsAsync(problem.Title, problem.Description, problem.Sector, null);
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Ekip analizi sırasında bir hata oluştu: {ex.Message}";
+            }
+            finally
+            {
+                isAnalyzing = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     private string GetPriorityBadge(string priority) => priority?.ToLower() switch

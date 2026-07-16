@@ -138,7 +138,7 @@
     /// <summary>
     /// Seçili problem için yapay zeka ile müşteri personaları üretir.
     /// </summary>
-    private async Task Generate()
+    private void Generate()
     {
         var problem = problems?.FirstOrDefault(p => p.Id == selectedProblemId);
         if (problem is null) return;
@@ -147,19 +147,23 @@
         isGenerating = true;
         personas = null;
         StateHasChanged();
-        try
+
+        _ = Task.Run(async () =>
         {
-            personas = await AIProvider.GenerateCustomerPersonaAsync(problem.Title, problem.Description, problem.Sector);
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Persona oluşturulurken bir hata oluştu: {ex.Message}";
-        }
-        finally
-        {
-            isGenerating = false;
-            StateHasChanged();
-        }
+            try
+            {
+                personas = await AIProvider.GenerateCustomerPersonaAsync(problem.Title, problem.Description, problem.Sector);
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Persona oluşturulurken bir hata oluştu: {ex.Message}";
+            }
+            finally
+            {
+                isGenerating = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     // İsimden baş harfleri (en fazla 2) üretir

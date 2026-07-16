@@ -136,7 +136,7 @@
     /// <summary>
     /// Seçili problem için yapay zeka ile uygun hibe programlarını arar.
     /// </summary>
-    private async Task FindGrants()
+    private void FindGrants()
     {
         if (selectedProblemId == Guid.Empty) return;
 
@@ -147,19 +147,23 @@
         isSearching = true;
         grants = null;
         StateHasChanged();
-        try
+
+        _ = Task.Run(async () =>
         {
-            grants = await AIProvider.FindGrantsAsync(problem.Title, problem.Description, problem.Sector);
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Hibe araması sırasında bir hata oluştu: {ex.Message}";
-        }
-        finally
-        {
-            isSearching = false;
-            StateHasChanged();
-        }
+            try
+            {
+                grants = await AIProvider.FindGrantsAsync(problem.Title, problem.Description, problem.Sector);
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Hibe araması sırasında bir hata oluştu: {ex.Message}";
+            }
+            finally
+            {
+                isSearching = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     // Match skoruna göre renk: yüksek yeşil, orta sarı, düşük kırmızı

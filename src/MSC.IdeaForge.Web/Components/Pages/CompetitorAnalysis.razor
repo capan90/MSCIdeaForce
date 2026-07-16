@@ -174,7 +174,7 @@
     /// <summary>
     /// Seçili problem için yapay zeka rakip analizini çalıştırır ve sonucu kaydeder.
     /// </summary>
-    private async Task RunCompetitorAnalysis()
+    private void RunCompetitorAnalysis()
     {
         if (selectedProblemId == Guid.Empty) return;
 
@@ -182,20 +182,23 @@
         isAnalyzing = true;
         StateHasChanged();
 
-        try
+        _ = Task.Run(async () =>
         {
-            result = await AnalyzeCompetitorsHandler.HandleAsync(
-                new MSC.IdeaForge.Application.CompetitorAnalyses.Commands.AnalyzeCompetitorsCommand { ProblemId = selectedProblemId });
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Rakip analizi sırasında bir hata oluştu: {ex.Message}";
-        }
-        finally
-        {
-            isAnalyzing = false;
-            StateHasChanged();
-        }
+            try
+            {
+                result = await AnalyzeCompetitorsHandler.HandleAsync(
+                    new MSC.IdeaForge.Application.CompetitorAnalyses.Commands.AnalyzeCompetitorsCommand { ProblemId = selectedProblemId });
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Rakip analizi sırasında bir hata oluştu: {ex.Message}";
+            }
+            finally
+            {
+                isAnalyzing = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     // Boş alanlar için tire gösteriyoruz

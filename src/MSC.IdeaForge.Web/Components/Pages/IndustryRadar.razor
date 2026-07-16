@@ -221,34 +221,39 @@
     /// <summary>
     /// Girilen sektör için yapay zeka trend analizini çalıştırır.
     /// </summary>
-    private async Task AnalyzeSector()
+    private Task AnalyzeSector()
     {
         errorMessage = "";
 
         if (string.IsNullOrWhiteSpace(sectorInput))
         {
             errorMessage = "Lütfen analiz edilecek bir sektör girin.";
-            return;
+            return Task.CompletedTask;
         }
 
         isAnalyzing = true;
         result = null;
         StateHasChanged();
 
-        try
+        _ = Task.Run(async () =>
         {
-            var sector = sectorInput.Trim();
-            result = await AIProvider.AnalyzeSectorAsync(sector);
-            analyzedSector = sector;
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Analiz sırasında bir hata oluştu: {ex.Message}";
-        }
-        finally
-        {
-            isAnalyzing = false;
-            StateHasChanged();
-        }
+            try
+            {
+                var sector = sectorInput.Trim();
+                result = await AIProvider.AnalyzeSectorAsync(sector);
+                analyzedSector = sector;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Analiz sırasında bir hata oluştu: {ex.Message}";
+            }
+            finally
+            {
+                isAnalyzing = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+
+        return Task.CompletedTask;
     }
 }
